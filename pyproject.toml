@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
   "beautifulsoup4>=4.12,<5",
   "httpx>=0.27,<1",
-  "openai>=1.68,<3",
+  "Pillow>=10,<13",
   "playwright>=1.49,<2",
   "PyYAML>=6,<7",
 ]

@@ -249,6 +249,11 @@ def send_discord_test(
                 or "No cards successfully priced",
                 "inline": False,
             },
+            {
+                "name": "Vision notes",
+                "value": "\n".join(vision.notes)[:1024] or "No notes",
+                "inline": False,
+            },
         ],
         "footer": {"text": "Diagnostic mode — not a purchase recommendation"},
     }

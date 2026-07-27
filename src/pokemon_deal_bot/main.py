@@ -13,7 +13,7 @@ from .discord import (
     send_discord_test_start,
 )
 from .fx import FxClient
-from .models import DealAssessment
+from .models import DealAssessment, SendicoListing
 from .pricecharting import PriceChartingClient
 from .reporting import write_reports
 from .sendico import SendicoMercariScanner
@@ -85,6 +85,16 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         api_key=config.gemini_api_key or "",
         model=str(vision_cfg["model"]),
         max_images=int(vision_cfg["max_images_per_listing"]),
+        two_pass_enabled=bool(vision_cfg.get("two_pass_enabled", True)),
+        two_pass_listing_types=list(
+            vision_cfg.get("two_pass_listing_types", ["lot", "collection"])
+        ),
+        max_crops_per_listing=int(vision_cfg.get("max_crops_per_listing", 16)),
+        crop_minimum_confidence=float(
+            vision_cfg.get("crop_minimum_confidence", 0.40)
+        ),
+        crop_padding_percent=float(vision_cfg.get("crop_padding_percent", 0.06)),
+        crop_max_dimension_px=int(vision_cfg.get("crop_max_dimension_px", 1400)),
     )
     state = StateStore(config.path("data/seen.json"))
     candidates = {}
@@ -92,10 +102,25 @@ async def run(config_path: str, dry_run: bool = False) -> int:
 
     try:
         async with SendicoMercariScanner(config.raw["sendico"]) as scanner:
+            direct_urls = [
+                str(url).strip()
+                for url in test_cfg.get("direct_listing_urls", [])
+                if str(url).strip()
+            ]
+            for direct_url in direct_urls:
+                code = direct_url.rstrip("/").split("/")[-1]
+                candidates[code] = SendicoListing(
+                    code=code,
+                    url=direct_url,
+                    title="Direct test listing",
+                    price_yen=0,
+                )
+                LOGGER.info("Queued direct test listing: %s", direct_url)
+
             for term in config.raw["sendico"]["search_terms"]:
                 LOGGER.info("Searching Sendico Mercari: %s", term)
                 for listing in await scanner.search(term):
-                    candidates[listing.code] = listing
+                    candidates.setdefault(listing.code, listing)
 
             limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
             for listing in list(candidates.values())[:limit]:

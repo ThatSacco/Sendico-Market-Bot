@@ -6,11 +6,13 @@ shipping_allowance_aud: 0.0
 
 test_mode:
   # TEMPORARY DIAGNOSTIC MODE.
-  # Sends a Discord result for up to three listings even if Victini is absent,
-  # the seller rating is unavailable, or the saving is below 20%.
+  # This run targets the known 16-card listing so the two-pass crop method can
+  # be tested without waiting for search ordering to return a suitable lot.
   enabled: true
-  max_alerts_per_run: 3
+  max_alerts_per_run: 1
   ignore_seen_state: true
+  direct_listing_urls:
+    - "https://sendico.com/shop/mercari/catalog/m10381389468"
 
 seller_verification:
   # Production behaviour once test_mode is disabled.
@@ -20,12 +22,11 @@ seller_verification:
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20
-  max_listings_per_run: 6
+  max_listings_per_run: 1
   page_timeout_ms: 60000
   search_terms:
-    - "ビクティニ まとめ売り"
+    - "ビクティニ AR まとめ売り"
     - "ビクティニ ポケモンカード セット"
-    - "ビクティニ ポケカ コレクション"
     - "ポケモンカード まとめ売り ビクティニ"
     - "ビクティニ 097/086"
 
@@ -36,6 +37,17 @@ vision:
   minimum_card_confidence: 0.78
   minimum_target_confidence: 0.85
   maximum_cards_to_price: 100
+
+  # Two-pass lot analysis costs at most two Gemini requests per listing:
+  # one overview request plus one batched request containing enlarged crops.
+  two_pass_enabled: true
+  two_pass_listing_types:
+    - "lot"
+    - "collection"
+  max_crops_per_listing: 16
+  crop_minimum_confidence: 0.40
+  crop_padding_percent: 0.06
+  crop_max_dimension_px: 1400
 
 pricing:
   request_delay_seconds: 1.2
