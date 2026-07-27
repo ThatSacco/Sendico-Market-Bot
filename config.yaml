@@ -1,0 +1,38 @@
+marketplace: mercari
+currency: AUD
+minimum_seller_positive_ratings: 301
+minimum_saving_percent: 20.0
+shipping_allowance_aud: 0.0
+
+sendico:
+  category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
+  max_results_per_search: 20
+  max_listings_per_run: 12
+  page_timeout_ms: 60000
+  search_terms:
+    - "ビクティニ 097/086"
+    - "ビクティニ AR まとめ売り"
+    - "ビクティニ ポケモンカード セット"
+    - "ポケモンカード まとめ売り ビクティニ"
+
+vision:
+  enabled: true
+  model: "gpt-5.6"
+  max_images_per_listing: 8
+  minimum_card_confidence: 0.78
+  minimum_target_confidence: 0.85
+  maximum_cards_to_price: 100
+
+pricing:
+  request_delay_seconds: 1.2
+  cache_hours: 12
+  manual_usd_to_aud: 1.52
+  manual_jpy_to_aud: 0.0102
+
+sendico_fee:
+  before_2026_08_01_jpy: 500
+  from_2026_08_01_jpy: 800
+
+discord:
+  username: "Pokemon Deal Scout"
+  enabled: true

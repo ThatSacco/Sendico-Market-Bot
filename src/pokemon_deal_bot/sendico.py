@@ -1,0 +1,246 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+import re
+from urllib.parse import urljoin, urlparse
+
+from playwright.async_api import Browser, Page, async_playwright
+
+from .models import SendicoListing
+
+LOGGER = logging.getLogger(__name__)
+
+PRICE_PATTERNS = [
+    re.compile(r"(?:¥|JPY|円)\s*([0-9][0-9,]*)", re.IGNORECASE),
+    re.compile(r"([0-9][0-9,]*)\s*(?:JPY|円)", re.IGNORECASE),
+]
+SELLER_PATTERNS = [
+    re.compile(r"(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)\D{0,30}([0-9][0-9,]*)", re.IGNORECASE),
+    re.compile(r"([0-9][0-9,]*)\s*(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)", re.IGNORECASE),
+    re.compile(r"(?:良い|高評価)\D{0,20}([0-9][0-9,]*)"),
+    re.compile(r"([0-9][0-9,]*)\s*(?:良い|高評価)"),
+]
+
+
+def parse_yen(text: str) -> int | None:
+    for pattern in PRICE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return int(match.group(1).replace(",", ""))
+    # Sendico cards often show the yen amount before a converted amount in brackets.
+    match = re.search(r"(?:^|\s)((?:[0-9]{1,3}(?:,[0-9]{3})+)|(?:[0-9]{3,}))(?=\s*\()", text)
+    if match:
+        return int(match.group(1).replace(",", ""))
+    return None
+
+
+def parse_seller_positive_ratings(text: str) -> int | None:
+    candidates: list[int] = []
+    for pattern in SELLER_PATTERNS:
+        for match in pattern.finditer(text):
+            value = int(match.group(1).replace(",", ""))
+            if 0 <= value <= 10_000_000:
+                candidates.append(value)
+    return max(candidates) if candidates else None
+
+
+def listing_code(url: str) -> str:
+    path = urlparse(url).path.rstrip("/")
+    return path.split("/")[-1]
+
+
+class SendicoMercariScanner:
+    def __init__(self, config: dict) -> None:
+        self.config = config
+        self.playwright = None
+        self.browser: Browser | None = None
+
+    async def __aenter__(self) -> "SendicoMercariScanner":
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(headless=True)
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self.browser:
+            await self.browser.close()
+        if self.playwright:
+            await self.playwright.stop()
+
+    async def _new_page(self) -> Page:
+        if not self.browser:
+            raise RuntimeError("Scanner must be used as an async context manager")
+        page = await self.browser.new_page(
+            viewport={"width": 1440, "height": 1200},
+            locale="en-AU",
+            user_agent=(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "Chrome/130 Safari/537.36"
+            ),
+        )
+        page.set_default_timeout(int(self.config.get("page_timeout_ms", 60_000)))
+        return page
+
+    async def search(self, term: str) -> list[SendicoListing]:
+        page = await self._new_page()
+        try:
+            await page.goto(self.config["category_url"], wait_until="domcontentloaded")
+            await self._dismiss_cookies(page)
+            await self._submit_search(page, term)
+            await page.wait_for_timeout(2500)
+            for _ in range(2):
+                await page.mouse.wheel(0, 2400)
+                await page.wait_for_timeout(1000)
+            raw = await page.locator('a[href*="/shop/mercari/catalog/"]').evaluate_all(
+                """
+                (anchors) => anchors.map((a) => {
+                  let node = a;
+                  for (let i = 0; i < 7 && node; i++, node = node.parentElement) {
+                    const txt = (node.innerText || '').trim();
+                    const img = node.querySelector && node.querySelector('img');
+                    if (txt.length > 3 && img) {
+                      return {
+                        href: a.href,
+                        text: txt,
+                        title: (a.innerText || a.getAttribute('title') || '').trim(),
+                        image: img.currentSrc || img.src || ''
+                      };
+                    }
+                  }
+                  return {href: a.href, text: (a.innerText || '').trim(), title: '', image: ''};
+                })
+                """
+            )
+            results: list[SendicoListing] = []
+            seen: set[str] = set()
+            for item in raw:
+                url = item.get("href", "")
+                if not url or url in seen or "/categories/" in url:
+                    continue
+                seen.add(url)
+                price_yen = parse_yen(item.get("text", ""))
+                if price_yen is None:
+                    continue
+                title = item.get("title") or item.get("text", "").splitlines()[0]
+                results.append(
+                    SendicoListing(
+                        code=listing_code(url),
+                        url=url,
+                        title=title.strip(),
+                        price_yen=price_yen,
+                        image_urls=[item["image"]] if item.get("image") else [],
+                        raw_text=item.get("text", ""),
+                    )
+                )
+                if len(results) >= int(self.config.get("max_results_per_search", 20)):
+                    break
+            return results
+        finally:
+            await page.close()
+
+    async def hydrate(self, listing: SendicoListing) -> SendicoListing:
+        page = await self._new_page()
+        try:
+            await page.goto(listing.url, wait_until="domcontentloaded")
+            await self._dismiss_cookies(page)
+            await page.wait_for_timeout(1800)
+            body_text = await page.locator("body").inner_text()
+            heading = page.locator("h1").first
+            if await heading.count():
+                text = (await heading.inner_text()).strip()
+                if text:
+                    listing.title = text
+            images = await page.locator("img").evaluate_all(
+                """
+                (imgs) => imgs.map((img) => ({
+                  src: img.currentSrc || img.src || '',
+                  width: img.naturalWidth || 0,
+                  height: img.naturalHeight || 0,
+                  alt: img.alt || ''
+                }))
+                """
+            )
+            selected: list[str] = []
+            for image in images:
+                src = image.get("src", "")
+                if not src or src.startswith("data:"):
+                    continue
+                if image.get("width", 0) < 280 or image.get("height", 0) < 280:
+                    continue
+                low = (src + " " + image.get("alt", "")).lower()
+                if any(token in low for token in ["logo", "avatar", "icon", "flag"]):
+                    continue
+                absolute = urljoin(listing.url, src)
+                if absolute not in selected:
+                    selected.append(absolute)
+            listing.image_urls = selected or listing.image_urls
+            listing.description = body_text
+            listing.raw_text = body_text
+            listing.seller_positive_ratings = parse_seller_positive_ratings(body_text)
+            if listing.seller_positive_ratings is None:
+                listing.seller_positive_ratings = await self._seller_rating_from_profile(page)
+            if listing.price_yen <= 0:
+                parsed_price = parse_yen(body_text)
+                if parsed_price:
+                    listing.price_yen = parsed_price
+            return listing
+        finally:
+            await page.close()
+
+    async def _seller_rating_from_profile(self, page: Page) -> int | None:
+        links = await page.locator(
+            'a[href*="seller" i], a[href*="profile" i], a[href*="user" i]'
+        ).evaluate_all(
+            """
+            (anchors) => anchors.map((a) => ({href: a.href, text: (a.innerText || '').trim()}))
+            """
+        )
+        for item in links[:5]:
+            href = item.get("href", "")
+            if not href or "sendico.com" not in href or "/shop/mercari" not in href:
+                continue
+            profile = await self._new_page()
+            try:
+                await profile.goto(href, wait_until="domcontentloaded")
+                await profile.wait_for_timeout(1000)
+                value = parse_seller_positive_ratings(await profile.locator("body").inner_text())
+                if value is not None:
+                    return value
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.debug("Seller profile lookup failed for %s: %s", href, exc)
+            finally:
+                await profile.close()
+        return None
+
+    async def _submit_search(self, page: Page, term: str) -> None:
+        selectors = [
+            'input[type="search"]',
+            'input[placeholder*="Search" i]',
+            'input[aria-label*="Search" i]',
+            'input[name="search"]',
+        ]
+        search_input = None
+        for selector in selectors:
+            locator = page.locator(selector).first
+            if await locator.count() and await locator.is_visible():
+                search_input = locator
+                break
+        if search_input is None:
+            # Last-resort URL query. This may need adjustment if Sendico changes its UI.
+            separator = "&" if "?" in page.url else "?"
+            await page.goto(f"{page.url}{separator}search={term}", wait_until="domcontentloaded")
+            return
+        await search_input.fill(term)
+        await search_input.press("Enter")
+
+    @staticmethod
+    async def _dismiss_cookies(page: Page) -> None:
+        for label in ["Accept", "Accept all", "I agree", "Got it"]:
+            button = page.get_by_role("button", name=re.compile(label, re.IGNORECASE)).first
+            try:
+                if await button.count() and await button.is_visible():
+                    await button.click()
+                    await asyncio.sleep(0.2)
+                    return
+            except Exception:  # noqa: BLE001
+                continue

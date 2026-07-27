@@ -1,0 +1,11 @@
+cards:
+  - id: "victini-sv11b-097-086"
+    active: true
+    japanese_name: "ビクティニ"
+    english_name: "Victini"
+    set_name: "Pokemon Japanese Black Bolt"
+    set_code: "sv11B"
+    card_number: "097/086"
+    rarity: "AR"
+    language: "Japanese"
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97"

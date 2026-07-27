@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import logging
+from pathlib import Path
+
+from .config import load_config, load_watchlist
+from .deal import assess_deal
+from .discord import send_discord
+from .fx import FxClient
+from .models import DealAssessment, IdentifiedCard, VisionResult
+from .pricecharting import PriceChartingClient
+from .reporting import write_reports
+from .sendico import SendicoMercariScanner
+from .state import StateStore
+from .vision import LotVisionAnalyzer
+
+LOGGER = logging.getLogger(__name__)
+
+
+async def run(config_path: str, dry_run: bool = False) -> int:
+    config = load_config(config_path)
+    targets = load_watchlist(config)
+    if len(targets) != 1:
+        raise RuntimeError("This MVP expects exactly one active watchlist card")
+    target = targets[0]
+    vision_cfg = config.raw["vision"]
+    if vision_cfg.get("enabled", True) and not config.openai_api_key:
+        raise RuntimeError(
+            "OPENAI_API_KEY is required to identify and value all cards in lot images"
+        )
+    fx_cfg = config.raw["pricing"]
+    fx = FxClient(
+        manual_usd_to_aud=float(fx_cfg["manual_usd_to_aud"]),
+        manual_jpy_to_aud=float(fx_cfg["manual_jpy_to_aud"]),
+    ).get_rates()
+    LOGGER.info(
+        "FX rates: USD/AUD %.4f, JPY/AUD %.6f (%s)",
+        fx.usd_to_aud,
+        fx.jpy_to_aud,
+        fx.source,
+    )
+    price_client = PriceChartingClient(
+        root=config.root,
+        fx=fx,
+        request_delay_seconds=float(fx_cfg.get("request_delay_seconds", 1.2)),
+        cache_hours=int(fx_cfg.get("cache_hours", 12)),
+    )
+    vision = LotVisionAnalyzer(
+        api_key=config.openai_api_key or "",
+        model=str(vision_cfg["model"]),
+        max_images=int(vision_cfg["max_images_per_listing"]),
+    )
+    state = StateStore(config.path("data/seen.json"))
+    candidates = {}
+    assessments: list[DealAssessment] = []
+    try:
+        async with SendicoMercariScanner(config.raw["sendico"]) as scanner:
+            for term in config.raw["sendico"]["search_terms"]:
+                LOGGER.info("Searching Sendico Mercari: %s", term)
+                for listing in await scanner.search(term):
+                    candidates[listing.code] = listing
+            limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
+            for listing in list(candidates.values())[:limit]:
+                try:
+                    listing = await scanner.hydrate(listing)
+                    if state.unchanged(listing):
+                        LOGGER.info("Skipping unchanged listing %s", listing.code)
+                        continue
+                    if listing.seller_positive_ratings is None:
+                        LOGGER.info("Rejecting %s: seller rating unverified", listing.code)
+                        state.update(listing, False, "seller rating unverified")
+                        continue
+                    if listing.seller_positive_ratings < config.minimum_seller_positive_ratings:
+                        outcome = f"seller rating {listing.seller_positive_ratings} below threshold"
+                        LOGGER.info("Rejecting %s: %s", listing.code, outcome)
+                        state.update(listing, False, outcome)
+                        continue
+                    vision_result = await asyncio.to_thread(vision.analyze, listing, target)
+                    raw_eligible = [
+                        card
+                        for card in vision_result.cards
+                        if card.language.lower() == "japanese"
+                        and card.confidence >= float(vision_cfg["minimum_card_confidence"])
+                    ]
+                    # The same physical cards may appear in multiple listing photos.
+                    # Keep the highest reported quantity per exact card instead of summing images.
+                    by_key = {}
+                    for card in raw_eligible:
+                        existing = by_key.get(card.key)
+                        if existing is None or card.quantity > existing.quantity:
+                            by_key[card.key] = card
+                    eligible_cards = list(by_key.values())[: int(vision_cfg["maximum_cards_to_price"])]
+                    priced = []
+                    for card in eligible_cards:
+                        result = await asyncio.to_thread(price_client.price_card, card, target)
+                        if result:
+                            priced.append(result)
+                    assessment = assess_deal(
+                        listing=listing,
+                        vision=vision_result,
+                        priced_cards=priced,
+                        fx=fx,
+                        fee_config=config.raw["sendico_fee"],
+                        minimum_saving_percent=config.minimum_saving_percent,
+                        minimum_seller_ratings=config.minimum_seller_positive_ratings,
+                        minimum_target_confidence=float(vision_cfg["minimum_target_confidence"]),
+                    )
+                    assessments.append(assessment)
+                    alerted = False
+                    if assessment.qualifies and not state.was_alerted(listing):
+                        if dry_run or not config.raw["discord"].get("enabled", True):
+                            LOGGER.info("DRY RUN qualifying deal: %s", listing.url)
+                        elif not config.discord_webhook_url:
+                            LOGGER.warning("Qualifying deal found but DISCORD_WEBHOOK_URL is unset")
+                        else:
+                            await asyncio.to_thread(
+                                send_discord,
+                                config.discord_webhook_url,
+                                assessment,
+                                str(config.raw["discord"].get("username", "Pokemon Deal Scout")),
+                            )
+                            alerted = True
+                    outcome = "qualifies" if assessment.qualifies else "; ".join(assessment.rejection_reasons)
+                    state.update(listing, alerted, outcome)
+                except Exception as exc:  # noqa: BLE001 - continue scanning other listings
+                    LOGGER.exception("Listing processing failed for %s: %s", listing.url, exc)
+                    state.update(listing, False, f"error: {exc}")
+    finally:
+        price_client.close()
+        state.save()
+        write_reports(config.root, assessments)
+    LOGGER.info("Completed: %d assessments, %d qualifying", len(assessments), sum(a.qualifies for a in assessments))
+    return 0
+
+
+def cli() -> None:
+    parser = argparse.ArgumentParser(description="Sendico Mercari Japanese Pokemon deal scanner")
+    parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--log-level", default="INFO")
+    args = parser.parse_args()
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    raise SystemExit(asyncio.run(run(args.config, args.dry_run)))
+
+
+if __name__ == "__main__":
+    cli()
