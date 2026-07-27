@@ -235,12 +235,12 @@
   },
   "m24075102942": {
     "url": "https://sendico.com/shop/mercari/catalog/m24075102942",
-    "fingerprint": "3c69cb53057edf15d37d04f15cbbf7db96389d997956db3149991fb5f371120f",
+    "fingerprint": "66153dd522a8756658e709ab1ebc8b14588e3f2e9f39f2df4de2ff878aa78c86",
     "alerted_fingerprint": "3c69cb53057edf15d37d04f15cbbf7db96389d997956db3149991fb5f371120f",
-    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 196186, Requested 4276. Please try again in 3m19.584s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T21:47:03.067656+00:00"
+    "last_checked": "2026-07-27T22:16:28.689561+00:00"
   },
   "m75471775610": {
     "url": "https://sendico.com/shop/mercari/catalog/m75471775610",
