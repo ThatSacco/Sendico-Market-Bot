@@ -193,7 +193,17 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         _merge_listing(existing, found_listing)
 
             limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
-            for listing in list(candidates.values())[:limit]:
+            listings_to_process = list(candidates.values())
+            if limit > 0:
+                listings_to_process = listings_to_process[:limit]
+
+            LOGGER.info(
+                "Processing %d unique Sendico listings%s",
+                len(listings_to_process),
+                " without a configured listing cap" if limit <= 0 else "",
+            )
+
+            for listing in listings_to_process:
                 try:
                     listing = await scanner.hydrate(listing)
 

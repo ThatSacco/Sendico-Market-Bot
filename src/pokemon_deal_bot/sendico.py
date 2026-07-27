@@ -115,9 +115,7 @@ class SendicoMercariScanner:
             await self._dismiss_cookies(page)
             await self._submit_search(page, term)
             await page.wait_for_timeout(2500)
-            for _ in range(2):
-                await page.mouse.wheel(0, 2400)
-                await page.wait_for_timeout(1000)
+            await self._scroll_search_results(page)
             raw = await page.locator('a[href*="/shop/mercari/catalog/"]').evaluate_all(
                 """
                 (anchors) => anchors.map((a) => {
@@ -140,6 +138,7 @@ class SendicoMercariScanner:
             )
             results: list[SendicoListing] = []
             seen: set[str] = set()
+            result_limit = int(self.config.get("max_results_per_search", 20))
             for item in raw:
                 url = item.get("href", "")
                 if not url or url in seen or "/categories/" in url:
@@ -159,11 +158,87 @@ class SendicoMercariScanner:
                         raw_text=item.get("text", ""),
                     )
                 )
-                if len(results) >= int(self.config.get("max_results_per_search", 20)):
+                if result_limit > 0 and len(results) >= result_limit:
                     break
             return results
         finally:
             await page.close()
+
+    async def _scroll_search_results(self, page: Page) -> None:
+        """Load search results until the number of unique listing links stabilises.
+
+        ``maximum_scroll_rounds`` and the result limits accept ``0`` as
+        unlimited. A stable-result threshold still ends the scan once Sendico
+        stops adding unique Mercari listing links.
+        """
+
+        maximum_rounds = int(self.config.get("maximum_scroll_rounds", 30))
+        stable_rounds_required = max(
+            1,
+            int(self.config.get("stable_scroll_rounds_before_stop", 3)),
+        )
+        scroll_pause_ms = max(250, int(self.config.get("scroll_pause_ms", 1500)))
+
+        previous_count = -1
+        stable_rounds = 0
+        round_number = 0
+
+        while True:
+            current_count = await page.locator(
+                'a[href*="/shop/mercari/catalog/"]'
+            ).evaluate_all(
+                """
+                (anchors) => new Set(
+                  anchors
+                    .map((a) => a.href || '')
+                    .filter((href) => href && !href.includes('/categories/'))
+                ).size
+                """
+            )
+
+            if current_count <= previous_count:
+                stable_rounds += 1
+            else:
+                stable_rounds = 0
+
+            LOGGER.info(
+                "Sendico search load round %d: %d unique listing links",
+                round_number,
+                current_count,
+            )
+
+            if stable_rounds >= stable_rounds_required:
+                LOGGER.info(
+                    "Sendico stopped loading new results at %d unique links",
+                    current_count,
+                )
+                return
+
+            if maximum_rounds > 0 and round_number >= maximum_rounds:
+                LOGGER.info(
+                    "Reached configured Sendico scroll limit of %d rounds",
+                    maximum_rounds,
+                )
+                return
+
+            previous_count = current_count
+            round_number += 1
+
+            # Some versions of the page expose a button instead of relying only
+            # on infinite scrolling. Click it when available, then scroll to the
+            # current document bottom.
+            load_more = page.get_by_role(
+                "button",
+                name=re.compile(r"load more|show more|more results|もっと見る", re.IGNORECASE),
+            ).first
+            try:
+                if await load_more.count() and await load_more.is_visible():
+                    await load_more.click()
+            except Exception:  # noqa: BLE001 - scrolling can still continue
+                pass
+
+            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            await page.wait_for_timeout(scroll_pause_ms)
 
     async def hydrate(self, listing: SendicoListing) -> SendicoListing:
         page = await self._new_page()

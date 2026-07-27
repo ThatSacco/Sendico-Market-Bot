@@ -19,11 +19,17 @@ seller_verification:
 
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
-  max_results_per_search: 20
-  # Ten listings means a maximum of about 20 Gemini requests per scheduled run
-  # when every listing requires both overview and crop passes.
-  max_listings_per_run: 10
+  # Zero means no configured cap. The scanner keeps loading until Sendico
+  # returns no new listing links for several consecutive scrolls.
+  max_results_per_search: 0
+  max_listings_per_run: 0
   page_timeout_ms: 60000
+
+  # Zero means no fixed scroll-round cap. Scrolling stops after three rounds
+  # with no new unique Mercari listing links.
+  maximum_scroll_rounds: 0
+  stable_scroll_rounds_before_stop: 3
+  scroll_pause_ms: 1500
   search_terms:
     - "ビクティニ AR まとめ売り"
     - "ビクティニ ポケモンカード セット"
