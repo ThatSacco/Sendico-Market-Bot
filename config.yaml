@@ -60,11 +60,8 @@ vision:
   # tested once, then skipped for the remainder of that scan.
   auto_discover_models: true
   max_model_attempts_per_request: 8
+  request_timeout_seconds: 120
   service_tier: "on_demand"
-
-  # Legacy single-model key retained for compatibility with older checkouts.
-  # The models list above takes priority.
-  model: "qwen/qwen3.6-27b"
 
   # Download up to 12 Sendico photos, then detect and crop card-shaped regions
   # locally with OpenCV. Overview photos are no longer sent to Groq.
