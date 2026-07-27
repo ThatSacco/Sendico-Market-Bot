@@ -214,5 +214,59 @@
     "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197359, Requested 4223. Please try again in 11m23.424s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
     "attempt_count": 1,
     "last_checked": "2026-07-27T11:05:58.220724+00:00"
+  },
+  "m51902266105": {
+    "url": "https://sendico.com/shop/mercari/catalog/m51902266105",
+    "fingerprint": "94c0c07508584ffb806d9f951ed502fe2f444987c031592e59db5640e5c8913f",
+    "alerted_fingerprint": "94c0c07508584ffb806d9f951ed502fe2f444987c031592e59db5640e5c8913f",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:40:34.745749+00:00"
+  },
+  "m58568457443": {
+    "url": "https://sendico.com/shop/mercari/catalog/m58568457443",
+    "fingerprint": "68d36085c7af639a0f3d8c72f62f60530ba4244631d29b97e3b0f9e024025280",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:43:55.713240+00:00"
+  },
+  "m24075102942": {
+    "url": "https://sendico.com/shop/mercari/catalog/m24075102942",
+    "fingerprint": "3c69cb53057edf15d37d04f15cbbf7db96389d997956db3149991fb5f371120f",
+    "alerted_fingerprint": "3c69cb53057edf15d37d04f15cbbf7db96389d997956db3149991fb5f371120f",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:47:03.067656+00:00"
+  },
+  "m75471775610": {
+    "url": "https://sendico.com/shop/mercari/catalog/m75471775610",
+    "fingerprint": "e4a86732218e3b71640c1a2d12b1054b744f4a64e0a618a87c400d796f242e4d",
+    "alerted_fingerprint": "e4a86732218e3b71640c1a2d12b1054b744f4a64e0a618a87c400d796f242e4d",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:50:05.961551+00:00"
+  },
+  "m41798608950": {
+    "url": "https://sendico.com/shop/mercari/catalog/m41798608950",
+    "fingerprint": "3052fc1a41e3f49f77c8cd065c7d3b0761ee5a4d7b5ef71cad942670c51716f1",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:53:48.506775+00:00"
+  },
+  "m13236704686": {
+    "url": "https://sendico.com/shop/mercari/catalog/m13236704686",
+    "fingerprint": "929ea3fd74810d13fd94f12829e06891429e6643fb18059ef0bcb5f52de2f646",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 198948, Requested 4198. Please try again in 22m39.072s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T21:56:34.867066+00:00"
   }
 }
