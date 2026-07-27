@@ -3,7 +3,9 @@ name: Scan Sendico Pokemon Deals
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17,47 * * * *"
+    # Monday and Thursday at 00:00 UTC.
+    # Approximately 10:00 AEST or 11:00 AEDT in Sydney.
+    - cron: "0 0 * * 1,4"
 
 permissions:
   contents: write
