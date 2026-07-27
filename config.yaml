@@ -60,7 +60,7 @@ vision:
   # tested once, then skipped for the remainder of that scan.
   auto_discover_models: true
   max_model_attempts_per_request: 8
-  #service_tier: "auto"
+  service_tier: "on_demand"
 
   # Legacy single-model key retained for compatibility with older checkouts.
   # The models list above takes priority.
