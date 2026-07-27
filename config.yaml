@@ -30,7 +30,7 @@ sendico:
 
 vision:
   enabled: true
-  model: "gemini-2.5-flash"
+  model: "gemini-3.6-flash"
   max_images_per_listing: 8
   minimum_card_confidence: 0.78
   minimum_target_confidence: 0.85
