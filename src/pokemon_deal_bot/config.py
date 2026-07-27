@@ -20,10 +20,6 @@ class AppConfig:
         return int(self.raw["minimum_seller_positive_ratings"])
 
     @property
-    def minimum_saving_percent(self) -> float:
-        return float(self.raw["minimum_saving_percent"])
-
-    @property
     def discord_webhook_url(self) -> str | None:
         return os.getenv("DISCORD_WEBHOOK_URL")
 

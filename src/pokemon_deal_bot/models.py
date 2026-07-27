@@ -90,12 +90,22 @@ class DealAssessment:
     listing_price_aud: float
     sendico_fee_aud: float
     total_identified_value_aud: float
-    saving_aud: float
-    saving_percent: float
+    price_variance_aud: float
+    price_variance_percent: float
     qualifies: bool
-    provisional_qualifies: bool = False
-    requires_manual_seller_verification: bool = False
     rejection_reasons: list[str] = field(default_factory=list)
 
+    @property
+    def provisional_qualifies(self) -> bool:
+        """True when only the unavailable seller rating blocks an alert."""
+        if self.qualifies or not self.rejection_reasons:
+            return False
+        return all(
+            reason == "seller positive rating could not be verified"
+            for reason in self.rejection_reasons
+        )
+
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        payload["provisional_qualifies"] = self.provisional_qualifies
+        return payload

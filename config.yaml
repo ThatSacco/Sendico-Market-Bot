@@ -1,29 +1,28 @@
 marketplace: mercari
 currency: AUD
 minimum_seller_positive_ratings: 301
-minimum_saving_percent: 20.0
 shipping_allowance_aud: 0.0
 
+# Production mode. GitHub Actions runs this scanner twice per week.
 test_mode:
-  # TEMPORARY DIAGNOSTIC MODE.
-  # This run targets the known 16-card listing so the two-pass crop method can
-  # be tested without waiting for search ordering to return a suitable lot.
-  enabled: true
+  enabled: false
   max_alerts_per_run: 1
-  ignore_seen_state: true
+  ignore_seen_state: false
   skip_search_when_direct_urls: true
-  direct_listing_urls:
-    - "https://sendico.com/shop/mercari/catalog/m10381389468"
+  direct_listing_urls: []
 
 seller_verification:
-  # Production behaviour once test_mode is disabled.
+  # Listings with an unavailable rating can create a provisional Discord alert.
+  # Any verified seller below 301 positives is rejected.
   analyse_unverified_sellers: true
   alert_provisional_deals: true
 
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20
-  max_listings_per_run: 1
+  # Six listings means a maximum of about 12 Gemini requests per scheduled run
+  # when every listing requires both overview and crop passes.
+  max_listings_per_run: 6
   page_timeout_ms: 60000
   search_terms:
     - "ビクティニ AR まとめ売り"
@@ -35,12 +34,13 @@ vision:
   enabled: true
   model: "gemini-3.6-flash"
   max_images_per_listing: 8
-  minimum_card_confidence: 0.78
+
+  # Price and include every Japanese card Gemini identifies at 95% or higher.
+  minimum_card_confidence: 0.95
   minimum_target_confidence: 0.85
   maximum_cards_to_price: 100
 
-  # Two-pass lot analysis costs at most two Gemini requests per listing:
-  # one overview request plus one batched request containing enlarged crops.
+  # Two Gemini requests maximum per lot: overview plus one batched crop request.
   two_pass_enabled: true
   two_pass_listing_types:
     - "lot"
@@ -55,6 +55,10 @@ pricing:
   cache_hours: 12
   manual_usd_to_aud: 1.52
   manual_jpy_to_aud: 0.0102
+
+  # Accept a PriceCharting candidate when the combined card-name, printed-number
+  # and Japanese-set match is at least 95%.
+  minimum_match_confidence: 0.95
 
 sendico_fee:
   before_2026_08_01_jpy: 800

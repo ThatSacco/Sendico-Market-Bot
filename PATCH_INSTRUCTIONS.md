@@ -1,30 +1,20 @@
-# Crop identity and strict valuation fix
+# Production pricing and twice-weekly schedule update
 
-Upload the **contents of this folder** to the root of the GitHub repository and replace the existing files.
+Upload the contents of this patch to the root of the GitHub repository and replace the existing files.
 
-Files replaced:
+This update:
 
-- `config.yaml`
-- `src/pokemon_deal_bot/main.py`
-- `src/pokemon_deal_bot/vision.py`
-- `src/pokemon_deal_bot/pricecharting.py`
-- `src/pokemon_deal_bot/discord.py`
-- the included test files
+- switches `test_mode` off;
+- removes the 20% saving requirement;
+- alerts on confirmed target listings regardless of positive or negative variance;
+- prices Japanese cards identified by Gemini at 95% confidence or higher;
+- accepts PriceCharting matches at 95% confidence or higher;
+- shows total PriceCharting lot value, total Sendico cost and AUD/% variance;
+- fixes the ¥800 Sendico fee;
+- runs Monday and Thursday at 00:00 UTC;
+- limits each run to six listings to control Gemini usage;
+- preserves the existing Gemini and Discord secrets.
 
-## Changes
+After committing the files, run the workflow manually once to verify the production alert format.
 
-- Pass 1 is now used only to locate card regions.
-- Pass 1 card identities are discarded when enlarged crop results are available.
-- Only one identity is accepted per physical crop.
-- Identical cards from separate crops are combined as true duplicate quantities.
-- PriceCharting results must match card name, printed card numerator, and Japanese set.
-- Wrong-number or wrong-set PriceCharting matches are assigned no value.
-- The Discord result includes `Lot value vs Sendico cost` in AUD.
-- Sendico cost uses the listing price plus a fixed ¥800 service fee.
-- Both pre- and post-1 August fee settings are set to ¥800.
-
-After committing to `main`, manually rerun the workflow.
-
-The current direct test listing should show a Sendico cost of approximately A$15.30 when the fallback JPY/AUD rate is 0.0102:
-
-`(¥700 listing + ¥800 fee) × 0.0102 = A$15.30`
+The next planned update is multi-card watchlist support: add or remove cards in `data/watchlist.yaml` without manually editing `config.yaml` search terms.

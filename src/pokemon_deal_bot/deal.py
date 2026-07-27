@@ -19,48 +19,39 @@ def assess_deal(
     priced_cards: list[CardPrice],
     fx: FxRates,
     fee_config: dict,
-    minimum_saving_percent: float,
     minimum_seller_ratings: int,
     minimum_target_confidence: float,
 ) -> DealAssessment:
+    """Assess a target listing without applying a minimum saving threshold.
+
+    Variance is PriceCharting lot value less Sendico acquisition cost. A listing
+    can qualify with either a positive or negative variance; Discord displays the
+    difference so the user can make the final decision.
+    """
     reasons: list[str] = []
-    non_seller_reasons: list[str] = []
     fee_jpy = sendico_fee_jpy(fee_config)
     listing_price_aud = listing.price_yen * fx.jpy_to_aud
     fee_aud = fee_jpy * fx.jpy_to_aud
     acquisition = listing_price_aud + fee_aud
     value = sum(item.total_aud for item in priced_cards)
-    saving = value - acquisition
-    saving_percent = (saving / value * 100.0) if value > 0 else -100.0
+    variance = value - acquisition
+    variance_percent = (variance / acquisition * 100.0) if acquisition > 0 else 0.0
 
-    seller_unverified = listing.seller_positive_ratings is None
-    if seller_unverified:
+    if listing.seller_positive_ratings is None:
         reasons.append("seller positive rating could not be verified")
     elif listing.seller_positive_ratings < minimum_seller_ratings:
         reasons.append(
-            f"seller has {listing.seller_positive_ratings} positive ratings; minimum is {minimum_seller_ratings}"
+            f"seller has {listing.seller_positive_ratings} positive ratings; "
+            f"minimum is {minimum_seller_ratings}"
         )
-
     if not vision.target_present:
-        non_seller_reasons.append("target card was not confirmed")
+        reasons.append("target card was not confirmed")
     if vision.target_confidence < minimum_target_confidence:
-        non_seller_reasons.append("target-card confidence is below threshold")
+        reasons.append("target-card confidence is below threshold")
     if not any(item.card.is_target for item in priced_cards):
-        non_seller_reasons.append("target card could not be priced")
+        reasons.append("target card could not be priced")
     if value <= 0:
-        non_seller_reasons.append("no cards were priced")
-    if saving_percent < minimum_saving_percent:
-        non_seller_reasons.append(
-            f"saving is {saving_percent:.1f}%; minimum is {minimum_saving_percent:.1f}%"
-        )
-    reasons.extend(non_seller_reasons)
-
-    seller_verified_and_eligible = (
-        listing.seller_positive_ratings is not None
-        and listing.seller_positive_ratings >= minimum_seller_ratings
-    )
-    qualifies = seller_verified_and_eligible and not non_seller_reasons
-    provisional_qualifies = seller_unverified and not non_seller_reasons
+        reasons.append("no cards were priced")
 
     return DealAssessment(
         listing=listing,
@@ -70,10 +61,8 @@ def assess_deal(
         listing_price_aud=listing_price_aud,
         sendico_fee_aud=fee_aud,
         total_identified_value_aud=value,
-        saving_aud=saving,
-        saving_percent=saving_percent,
-        qualifies=qualifies,
-        provisional_qualifies=provisional_qualifies,
-        requires_manual_seller_verification=seller_unverified,
+        price_variance_aud=variance,
+        price_variance_percent=variance_percent,
+        qualifies=not reasons,
         rejection_reasons=reasons,
     )

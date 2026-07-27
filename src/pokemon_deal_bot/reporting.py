@@ -17,22 +17,26 @@ def write_reports(root: Path, assessments: list[DealAssessment]) -> None:
     fields = [
         "qualifies",
         "provisional_qualifies",
-        "requires_manual_seller_verification",
         "title",
         "url",
         "price_yen",
         "seller_positive_ratings",
         "listing_type",
         "target_confidence",
+        "identified_card_entries",
         "priced_card_entries",
         "unidentified_card_count",
+        "listing_price_aud",
+        "sendico_fee_aud",
         "acquisition_cost_aud",
-        "identified_value_aud",
-        "saving_aud",
-        "saving_percent",
+        "pricecharting_lot_value_aud",
+        "price_variance_aud",
+        "price_variance_percent",
         "rejection_reasons",
     ]
-    with (report_dir / "latest.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (report_dir / "latest.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for item in assessments:
@@ -40,19 +44,25 @@ def write_reports(root: Path, assessments: list[DealAssessment]) -> None:
                 {
                     "qualifies": item.qualifies,
                     "provisional_qualifies": item.provisional_qualifies,
-                    "requires_manual_seller_verification": item.requires_manual_seller_verification,
                     "title": item.listing.title,
                     "url": item.listing.url,
                     "price_yen": item.listing.price_yen,
                     "seller_positive_ratings": item.listing.seller_positive_ratings,
                     "listing_type": item.vision.listing_type,
                     "target_confidence": round(item.vision.target_confidence, 4),
+                    "identified_card_entries": len(item.vision.cards),
                     "priced_card_entries": len(item.priced_cards),
                     "unidentified_card_count": item.vision.unidentified_card_count,
+                    "listing_price_aud": round(item.listing_price_aud, 2),
+                    "sendico_fee_aud": round(item.sendico_fee_aud, 2),
                     "acquisition_cost_aud": round(item.acquisition_cost_aud, 2),
-                    "identified_value_aud": round(item.total_identified_value_aud, 2),
-                    "saving_aud": round(item.saving_aud, 2),
-                    "saving_percent": round(item.saving_percent, 2),
+                    "pricecharting_lot_value_aud": round(
+                        item.total_identified_value_aud, 2
+                    ),
+                    "price_variance_aud": round(item.price_variance_aud, 2),
+                    "price_variance_percent": round(
+                        item.price_variance_percent, 2
+                    ),
                     "rejection_reasons": "; ".join(item.rejection_reasons),
                 }
             )

@@ -101,6 +101,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         fx=fx,
         request_delay_seconds=float(fx_cfg.get("request_delay_seconds", 1.2)),
         cache_hours=int(fx_cfg.get("cache_hours", 12)),
+        minimum_match_confidence=float(
+            fx_cfg.get("minimum_match_confidence", 0.95)
+        ),
     )
     vision = LotVisionAnalyzer(
         api_key=config.gemini_api_key or "",
@@ -278,7 +281,6 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         priced_cards=priced,
                         fx=fx,
                         fee_config=config.raw["sendico_fee"],
-                        minimum_saving_percent=config.minimum_saving_percent,
                         minimum_seller_ratings=config.minimum_seller_positive_ratings,
                         minimum_target_confidence=float(
                             vision_cfg["minimum_target_confidence"]
