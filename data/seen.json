@@ -3,84 +3,84 @@
     "url": "https://sendico.com/shop/mercari/catalog/m21740128151",
     "fingerprint": "d327199fa1d684a91aa45778fd05e6bf79ecacd310852bf37d87ec5dd78e6805",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:32:37.553800+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:50:43.759586+00:00"
   },
   "m40113077517": {
     "url": "https://sendico.com/shop/mercari/catalog/m40113077517",
     "fingerprint": "1f809988350394c884fc1b5109b505e4311d845454c7b944f3381a2507f590b5",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:32:41.088492+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:50:47.255381+00:00"
   },
   "m97487461762": {
     "url": "https://sendico.com/shop/mercari/catalog/m97487461762",
-    "fingerprint": "3e82549fff4291dde9e29cd98a916cff4af88806ea70701da070175a6a4af268",
+    "fingerprint": "0a92912761bff83438b2c819f3fb62fc1d5f6be50c34ccfc7e6d932fe1150473",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:32:44.514047+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:50:56.885244+00:00"
   },
   "m51851103951": {
     "url": "https://sendico.com/shop/mercari/catalog/m51851103951",
     "fingerprint": "92b86b7dc6fd91c1f57bbf5997b4207b14df34d7bc7b4552c3fecef582581cc8",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:32:48.065010+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:00.836272+00:00"
   },
   "NcCtCB3z74P7LwztnwXdR4": {
     "url": "https://sendico.com/shop/mercari/catalog/NcCtCB3z74P7LwztnwXdR4",
     "fingerprint": "63deed5a0cee48a51f488bd126c6b30637a33f31df86a5637cc38cea4be6b931",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:32:57.560696+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:05.196812+00:00"
   },
   "m79081919414": {
     "url": "https://sendico.com/shop/mercari/catalog/m79081919414",
     "fingerprint": "6180cad1a3d58748e20ffc30f067e14100f2fe8f1935dedafcc46409382ca338",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:01.203849+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:08.751654+00:00"
   },
   "m46304460559": {
     "url": "https://sendico.com/shop/mercari/catalog/m46304460559",
     "fingerprint": "9f7cc407db66ed9d2c37b8a5795ddb6ba0007e4107be574283e091391b8f67c5",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:05.236021+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:12.165108+00:00"
   },
   "m24978308385": {
     "url": "https://sendico.com/shop/mercari/catalog/m24978308385",
-    "fingerprint": "a989d7e42a7ab62550baf8434a57c2be164b39bc78a4bf6f9b7f1646a3307047",
+    "fingerprint": "b2a05adc559eec463e54ae17fa853bc7d9924441cd18e3b9ef128c10b5868e85",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:08.724932+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:21.912423+00:00"
   },
   "m18425727941": {
     "url": "https://sendico.com/shop/mercari/catalog/m18425727941",
     "fingerprint": "bb3c8ea269ef886e1628ba3b68d591fe1fbdf2a27d491a92f3d388ca496cd0ad",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:12.255065+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:25.505764+00:00"
   },
   "2JTircBAmmEABXMMFYTdSy": {
     "url": "https://sendico.com/shop/mercari/catalog/2JTircBAmmEABXMMFYTdSy",
     "fingerprint": "ff5af5c9511e118b2a25dccdb506990ce840c8394e008ee76b53a29b298ff0c4",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:15.846092+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:29.080666+00:00"
   },
   "oAHW6zEP43cAqBUTQtJAJA": {
     "url": "https://sendico.com/shop/mercari/catalog/oAHW6zEP43cAqBUTQtJAJA",
-    "fingerprint": "209f53f761bc3e726ad48eda53b65e9ca698202f4bd4070429754912ff0ce3e1",
+    "fingerprint": "7d8eed9deffe9a7d64e422244e2c5b9689a92a9f64dc616e5d9b113370b7035a",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:19.861951+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:37.891504+00:00"
   },
   "m44129557309": {
     "url": "https://sendico.com/shop/mercari/catalog/m44129557309",
     "fingerprint": "e8258807f512927709a983a5453f16e05bb1c7560e985e47b19abff78dca8be3",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj ********************************************************************************************************************************************************sQEA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}",
-    "last_checked": "2026-07-27T03:33:23.460503+00:00"
+    "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+    "last_checked": "2026-07-27T03:51:41.282382+00:00"
   }
 }
