@@ -117,11 +117,41 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 )
                 LOGGER.info("Queued direct test listing: %s", direct_url)
 
-            for term in config.raw["sendico"]["search_terms"]:
+                        for term in config.raw["sendico"]["search_terms"]:
                 LOGGER.info("Searching Sendico Mercari: %s", term)
-                for listing in await scanner.search(term):
-                    candidates.setdefault(listing.code, listing)
 
+            for found_listing in await scanner.search(term):
+                    existing = candidates.get(found_listing.code)
+
+                    if existing is None:
+                        candidates[found_listing.code] = found_listing
+                        continue
+
+                    # Enrich a direct-test placeholder using the real
+                    # Sendico search result.
+                    if found_listing.image_urls:
+                        existing.image_urls = list(
+                            dict.fromkeys(
+                                existing.image_urls
+                                + found_listing.image_urls
+                            )
+                        )
+
+                    if (
+                        existing.price_yen <= 0
+                        and found_listing.price_yen > 0
+                    ):
+                        existing.price_yen = found_listing.price_yen
+
+                    if (
+                        existing.title == "Direct test listing"
+                        and found_listing.title
+                    ):
+                        existing.title = found_listing.title
+
+                    if found_listing.raw_text:
+                        existing.raw_text = found_listing.raw_text
+                        
             limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
             for listing in list(candidates.values())[:limit]:
                 try:
