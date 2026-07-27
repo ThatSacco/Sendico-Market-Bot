@@ -149,13 +149,16 @@ Return JSON only with this shape:
                 "responseMimeType": "application/json",
             },
         }
-
         response = httpx.post(
             self.endpoint,
-            params={"key": self.api_key},
+            headers={
+                "x-goog-api-key": self.api_key,
+                "Content-Type": "application/json",
+            },
             json=payload,
-            timeout=180.0,
+            timeout=120.0,
         )
+    
         if response.is_error:
             detail = response.text[:1500]
             raise RuntimeError(
