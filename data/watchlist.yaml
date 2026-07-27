@@ -1,11 +1,11 @@
 cards:
-  - id: "victini-sv11b-097-086"
+  - id: ampharos_ex_xy7_027
     active: true
-    japanese_name: "ビクティニ"
-    english_name: "Victini"
-    set_name: "Pokemon Japanese Black Bolt"
-    set_code: "sv11B"
-    card_number: "097/086"
-    rarity: "AR"
+    japanese_name: "デンリュウEX"
+    english_name: "Ampharos EX"
+    set_name: "Bandit Ring"
+    set_code: "XY7"
+    card_number: "027/081"
+    rarity: "RR"
     language: "Japanese"
-    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97"
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
