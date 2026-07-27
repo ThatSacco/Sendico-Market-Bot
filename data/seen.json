@@ -1,11 +1,11 @@
 {
   "m51902266105": {
     "url": "https://sendico.com/shop/mercari/catalog/m51902266105",
-    "fingerprint": "94c0c07508584ffb806d9f951ed502fe2f444987c031592e59db5640e5c8913f",
+    "fingerprint": "a74db8f60eb9c6b3a37d7642fb82274f024a43272d82442b72526be09c928059",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 198971, Requested 4276. Please try again in 23m22.704s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+    "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197930, Requested 4276. Please try again in 15m52.992s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T22:44:31.854728+00:00"
+    "last_checked": "2026-07-27T22:52:01.768804+00:00"
   }
 }
