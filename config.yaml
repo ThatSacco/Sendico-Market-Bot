@@ -24,7 +24,7 @@ sendico:
 
 vision:
   enabled: true
-  model: "gpt-5.6"
+  model: "gemini-1.5-flash"
   max_images_per_listing: 8
   minimum_card_confidence: 0.78
   minimum_target_confidence: 0.85
