@@ -20,13 +20,14 @@ seller_verification:
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20
-  max_listings_per_run: 3
+  max_listings_per_run: 6
   page_timeout_ms: 60000
   search_terms:
-    - "ビクティニ 097/086"
-    - "ビクティニ AR まとめ売り"
+    - "ビクティニ まとめ売り"
     - "ビクティニ ポケモンカード セット"
+    - "ビクティニ ポケカ コレクション"
     - "ポケモンカード まとめ売り ビクティニ"
+    - "ビクティニ 097/086"
 
 vision:
   enabled: true
