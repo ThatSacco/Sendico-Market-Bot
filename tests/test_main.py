@@ -25,3 +25,53 @@ def test_merge_listing_enriches_direct_placeholder():
     assert merged.price_yen == 700
     assert merged.image_urls == found.image_urls
     assert merged.raw_text == found.raw_text
+
+
+def test_candidate_relevance_prioritises_exact_watchlist_evidence():
+    from pokemon_deal_bot.main import _candidate_relevance_score
+    from pokemon_deal_bot.models import WatchCard
+
+    target = WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        japanese_name="デンリュウEX",
+        set_name="Bandit Ring",
+        set_code="XY7",
+        card_number="027/081",
+        search_terms=["デンリュウEX 027/081"],
+    )
+    strong = SendicoListing(
+        code="m1",
+        url="https://example.test/m1",
+        title="デンリュウEX 027/081 XY7",
+        price_yen=1000,
+    )
+    unrelated = SendicoListing(
+        code="m2",
+        url="https://example.test/m2",
+        title="Pikachu card sleeves",
+        price_yen=1000,
+    )
+
+    assert _candidate_relevance_score(strong, [target]) >= 100
+    assert _candidate_relevance_score(unrelated, [target]) == 0
+
+
+def test_candidate_relevance_keeps_generic_lot_as_low_priority():
+    from pokemon_deal_bot.main import _candidate_relevance_score
+    from pokemon_deal_bot.models import WatchCard
+
+    target = WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        card_number="027/081",
+    )
+    lot = SendicoListing(
+        code="m3",
+        url="https://example.test/m3",
+        title="Japanese Pokemon collection lot",
+        price_yen=1000,
+    )
+    assert _candidate_relevance_score(lot, [target]) == 5

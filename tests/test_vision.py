@@ -550,3 +550,266 @@ def test_general_base_name_matches_dark_or_shining_prefix():
     )
     assert result.target_present
     assert result.cards[0].matched_watchlist_ids == ["tyranitar_neo"]
+
+
+def _different_single_card_jpeg() -> bytes:
+    image = Image.new("RGB", (500, 700), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((10, 10, 490, 690), outline="black", width=10)
+    draw.ellipse((70, 90, 430, 430), fill="gold", outline="purple", width=8)
+    draw.text((55, 630), "999/999", fill="black")
+    output = io.BytesIO()
+    image.save(output, format="JPEG", quality=95)
+    return output.getvalue()
+
+
+def test_unmatched_alternate_photo_cannot_increase_physical_quantity():
+    extractor = LocalCardExtractor(duplicate_phash_distance=2)
+    crops = extractor.extract(
+        [
+            DownloadedImage(1, "", "image/jpeg", _single_card_jpeg()),
+            DownloadedImage(2, "", "image/jpeg", _different_single_card_jpeg()),
+        ]
+    )
+    assert len(crops) == 1
+
+
+def test_groq_per_run_request_budget_is_enforced(monkeypatch):
+    from pokemon_deal_bot.vision import VisionRunBudgetReached
+
+    analyzer = LotVisionAnalyzer(
+        api_key="test",
+        model="test",
+        max_images=1,
+        request_spacing_seconds=0,
+        max_requests_per_run=1,
+    )
+
+    class FakeResponse:
+        status_code = 200
+        is_error = False
+        text = ""
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": '{"cards":[]}'}}]}
+
+    monkeypatch.setattr(
+        "pokemon_deal_bot.vision.httpx.post",
+        lambda *args, **kwargs: FakeResponse(),
+    )
+    parts = [
+        {"text": "Return JSON"},
+        analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+    ]
+    analyzer._generate(parts)
+    with pytest.raises(VisionRunBudgetReached):
+        analyzer._generate(parts)
+
+
+def test_groq_model_pool_falls_back_after_rate_limit(monkeypatch):
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model=None,
+        models=["vision-primary", "vision-fallback"],
+        auto_discover_models=False,
+        max_images=1,
+        request_spacing_seconds=0,
+    )
+    attempted = []
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+            self.is_error = status_code >= 400
+            self.text = str(payload)
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        attempted.append(model)
+        if model == "vision-primary":
+            return FakeResponse(
+                429,
+                {"error": {"message": "daily model quota reached", "code": "rate_limit_exceeded"}},
+            )
+        return FakeResponse(
+            200,
+            {"choices": [{"message": {"content": '{"cards":[]}'}}]},
+        )
+
+    monkeypatch.setattr("pokemon_deal_bot.vision.httpx.post", fake_post)
+    result = analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+        ]
+    )
+
+    assert result == {"cards": []}
+    assert attempted == ["vision-primary", "vision-fallback"]
+    assert analyzer.model == "vision-fallback"
+    assert analyzer.model_usage == {"vision-fallback": 1}
+    assert "vision-primary" in analyzer._disabled_models
+
+
+def test_groq_auto_discovery_uses_models_enabled_for_account(monkeypatch):
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model="configured-but-disabled",
+        models=["configured-but-disabled"],
+        auto_discover_models=True,
+        max_images=1,
+        request_spacing_seconds=0,
+    )
+    posted_models = []
+
+    class FakeGetResponse:
+        status_code = 200
+        is_error = False
+        text = ""
+
+        @staticmethod
+        def raise_for_status():
+            return None
+
+        @staticmethod
+        def json():
+            return {
+                "data": [
+                    {"id": "whisper-large-v3", "active": True},
+                    {"id": "account-vision-model", "active": True},
+                ]
+            }
+
+    class FakePostResponse:
+        status_code = 200
+        is_error = False
+        text = ""
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": '{"cards":[]}'}}]}
+
+    monkeypatch.setattr(
+        "pokemon_deal_bot.vision.httpx.get", lambda *args, **kwargs: FakeGetResponse()
+    )
+
+    def fake_post(url, **kwargs):
+        posted_models.append(kwargs["json"]["model"])
+        return FakePostResponse()
+
+    monkeypatch.setattr("pokemon_deal_bot.vision.httpx.post", fake_post)
+    analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+        ]
+    )
+
+    assert posted_models == ["account-vision-model"]
+    assert analyzer.models == ["account-vision-model"]
+    assert "configured-but-disabled" in analyzer._disabled_models
+    assert "whisper-large-v3" not in analyzer.models
+
+
+def test_groq_incompatible_image_model_is_skipped_for_run(monkeypatch):
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model=None,
+        models=["text-only", "vision-capable"],
+        auto_discover_models=False,
+        max_images=1,
+        request_spacing_seconds=0,
+    )
+    attempted = []
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+            self.is_error = status_code >= 400
+            self.text = str(payload)
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        attempted.append(model)
+        if model == "text-only":
+            return FakeResponse(
+                400,
+                {"error": {"message": "This model does not support image inputs", "code": "invalid_request_error"}},
+            )
+        return FakeResponse(
+            200,
+            {"choices": [{"message": {"content": '{"cards":[]}'}}]},
+        )
+
+    monkeypatch.setattr("pokemon_deal_bot.vision.httpx.post", fake_post)
+    analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+        ]
+    )
+    analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+        ]
+    )
+
+    assert attempted == ["text-only", "vision-capable", "vision-capable"]
+    assert "text-only" in analyzer._disabled_models
+    assert analyzer.model_usage == {"vision-capable": 2}
+
+
+def test_groq_retries_same_model_without_json_mode_when_unsupported(monkeypatch):
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model="vision-model",
+        max_images=1,
+        auto_discover_models=False,
+        request_spacing_seconds=0,
+    )
+    payloads = []
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+            self.is_error = status_code >= 400
+            self.text = str(payload)
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, **kwargs):
+        payloads.append(kwargs["json"])
+        if len(payloads) == 1:
+            return FakeResponse(
+                400,
+                {"error": {"message": "response_format json_object is not supported", "code": "invalid_request_error"}},
+            )
+        return FakeResponse(
+            200,
+            {"choices": [{"message": {"content": '```json\n{"cards":[]}\n```'}}]},
+        )
+
+    monkeypatch.setattr("pokemon_deal_bot.vision.httpx.post", fake_post)
+    result = analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _single_card_jpeg()),
+        ]
+    )
+
+    assert result == {"cards": []}
+    assert payloads[0]["response_format"] == {"type": "json_object"}
+    assert "response_format" not in payloads[1]
+    assert "reasoning_effort" not in payloads[0]

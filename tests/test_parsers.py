@@ -17,3 +17,20 @@ def test_parse_yen():
 def test_parse_seller_ratings():
     assert parse_seller_positive_ratings("Seller Positive ratings 1,428 Negative 2") == 1428
     assert parse_seller_positive_ratings("高評価 560") == 560
+
+
+def test_listing_image_filter_excludes_other_mercari_listing_thumbnails():
+    from pokemon_deal_bot.sendico import is_listing_image_url
+
+    assert is_listing_image_url(
+        "https://static.mercdn.net/item/detail/orig/photos/m51902266105_2.jpg?123",
+        "m51902266105",
+    )
+    assert not is_listing_image_url(
+        "https://static.mercdn.net/thumb/item/webp/m69590844002_1.jpg?123",
+        "m51902266105",
+    )
+    assert not is_listing_image_url(
+        "https://example.test/logo.png",
+        "m51902266105",
+    )

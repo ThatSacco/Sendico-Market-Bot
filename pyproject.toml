@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sendico-pokemon-deal-bot"
-version = "0.4.1"
+version = "0.4.2"
 description = "Monitor Sendico Mercari Pokemon card listings, value Japanese card lots, and alert Discord."
 requires-python = ">=3.11"
 dependencies = [

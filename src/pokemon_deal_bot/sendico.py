@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from playwright.async_api import Browser, Page, TimeoutError as PlaywrightTimeoutError, async_playwright
 
@@ -21,6 +21,28 @@ SELLER_PATTERNS = [
     re.compile(r"(?:良い|高評価)\D{0,20}([0-9][0-9,]*)"),
     re.compile(r"([0-9][0-9,]*)\s*(?:良い|高評価)"),
 ]
+
+
+_MERCARI_LISTING_ID_RE = re.compile(r"m\d{8,}", re.IGNORECASE)
+_IMAGE_EXTENSION_RE = re.compile(r"\.(?:jpe?g|png|webp)(?:$|\?)", re.IGNORECASE)
+
+
+def is_listing_image_url(url: str, listing_id: str) -> bool:
+    """Return true only for an image belonging to the current Mercari listing.
+
+    Sendico detail pages also render recommendation thumbnails for other Mercari
+    listings. Those URLs contain a different ``m########`` identifier and must
+    never be sent to Groq as though they were photos of the current listing.
+    """
+    candidate = unquote(str(url or "").strip())
+    code = str(listing_id or "").strip().lower()
+    if not candidate or not code:
+        return False
+    lowered = candidate.lower()
+    if code not in lowered or not _IMAGE_EXTENSION_RE.search(lowered):
+        return False
+    found_ids = {value.lower() for value in _MERCARI_LISTING_ID_RE.findall(lowered)}
+    return not found_ids or found_ids == {code}
 
 
 def parse_yen(text: str) -> int | None:
@@ -332,6 +354,8 @@ class SendicoMercariScanner:
                 ):
                     return
                 absolute = urljoin(listing.url, src)
+                if not is_listing_image_url(absolute, listing.code):
+                    return
                 if absolute not in selected:
                     selected.append(absolute)
 
@@ -360,8 +384,16 @@ class SendicoMercariScanner:
                 ):
                     add_image(src)
 
-            listing.image_urls = list(
-                dict.fromkeys([*listing.image_urls, *selected])
+            listing.image_urls = [
+                url
+                for url in dict.fromkeys([*listing.image_urls, *selected])
+                if is_listing_image_url(url, listing.code)
+            ]
+            LOGGER.info(
+                "Hydrated %s with %d verified listing image(s); unrelated "
+                "recommendation thumbnails were excluded",
+                listing.code,
+                len(listing.image_urls),
             )
             listing.description = body_text
             listing.raw_text = body_text

@@ -235,6 +235,94 @@ def send_discord(webhook_url: str, assessment: DealAssessment, username: str) ->
     LOGGER.info("Discord alert sent for %s", assessment.listing.url)
 
 
+def build_scan_summary_embed(
+    *,
+    discovered: int,
+    prefiltered_out: int,
+    hydrated: int,
+    unchanged_skipped: int,
+    seller_filtered: int,
+    analysed: int,
+    assessments: int,
+    strict_matches: int,
+    provisional_matches: int,
+    alerts_sent: int,
+    errors: int,
+    groq_requests: int,
+    groq_models: str = "None completed",
+    stop_reason: str | None = None,
+) -> dict:
+    """Build a compact completion summary for every production scan."""
+    if stop_reason:
+        title = "SENDICO SCAN PAUSED"
+        color = 0xF1C40F
+        status = stop_reason
+    else:
+        title = "SENDICO SCAN COMPLETED"
+        color = 0x2ECC71 if alerts_sent else 0x5865F2
+        status = "Completed normally"
+
+    return {
+        "title": title,
+        "description": status[:4000],
+        "color": color,
+        "fields": [
+            {
+                "name": "Listings",
+                "value": (
+                    f"Found: **{discovered}**\n"
+                    f"Filtered before Groq: **{prefiltered_out}**\n"
+                    f"Detail pages checked: **{hydrated}**"
+                ),
+                "inline": True,
+            },
+            {
+                "name": "Skipped",
+                "value": (
+                    f"Already processed/retry limit: **{unchanged_skipped}**\n"
+                    f"Seller threshold: **{seller_filtered}**"
+                ),
+                "inline": True,
+            },
+            {
+                "name": "Groq",
+                "value": (
+                    f"Listings analysed: **{analysed}**\n"
+                    f"Requests sent: **{groq_requests}**\n"
+                    f"Models used: **{groq_models[:500]}**\n"
+                    f"Processing errors: **{errors}**"
+                ),
+                "inline": True,
+            },
+            {
+                "name": "Results",
+                "value": (
+                    f"Assessments: **{assessments}**\n"
+                    f"Strict matches: **{strict_matches}**\n"
+                    f"Provisional matches: **{provisional_matches}**\n"
+                    f"Deal alerts sent: **{alerts_sent}**"
+                ),
+                "inline": False,
+            },
+        ],
+        "footer": {
+            "text": "A completion summary is sent even when no deal alert qualifies"
+        },
+    }
+
+
+def send_discord_summary(
+    webhook_url: str,
+    username: str,
+    **summary,
+) -> None:
+    _post_embed(
+        webhook_url,
+        username,
+        build_scan_summary_embed(**summary),
+    )
+    LOGGER.info("Discord scan summary sent")
+
 def send_discord_test_start(
     webhook_url: str,
     username: str,
@@ -250,7 +338,7 @@ def send_discord_test_start(
         ),
         "color": 0x5865F2,
         "fields": [
-            {"name": "Groq model", "value": model, "inline": True},
+            {"name": "Groq model pool", "value": model[:1000], "inline": False},
             {
                 "name": "Maximum listing alerts",
                 "value": str(listing_limit),

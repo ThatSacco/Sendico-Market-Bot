@@ -23,9 +23,10 @@ class FxClient:
     def get_rates(self) -> FxRates:
         try:
             response = httpx.get(
-                "https://api.frankfurter.app/latest",
-                params={"from": "USD", "to": "AUD,JPY"},
+                "https://api.frankfurter.dev/v1/latest",
+                params={"base": "USD", "symbols": "AUD,JPY"},
                 timeout=20.0,
+                follow_redirects=True,
                 headers={"User-Agent": "sendico-pokemon-deal-bot/0.1"},
             )
             response.raise_for_status()

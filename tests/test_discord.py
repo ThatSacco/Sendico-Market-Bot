@@ -170,3 +170,49 @@ def test_priced_card_includes_clickable_pricecharting_source():
         if field["name"] == "Cards priced at ≥95% match"
     )
     assert f"[PriceCharting]({source_url})" in prices["value"]
+
+
+def test_scan_summary_reports_zero_alert_completed_run():
+    from pokemon_deal_bot.discord import build_scan_summary_embed
+
+    embed = build_scan_summary_embed(
+        discovered=68,
+        prefiltered_out=58,
+        hydrated=10,
+        unchanged_skipped=2,
+        seller_filtered=1,
+        analysed=7,
+        assessments=7,
+        strict_matches=0,
+        provisional_matches=0,
+        alerts_sent=0,
+        errors=0,
+        groq_requests=7,
+        stop_reason=None,
+    )
+
+    assert embed["title"] == "SENDICO SCAN COMPLETED"
+    results = next(field for field in embed["fields"] if field["name"] == "Results")
+    assert "Deal alerts sent: **0**" in results["value"]
+
+
+def test_scan_summary_marks_groq_quota_pause():
+    from pokemon_deal_bot.discord import build_scan_summary_embed
+
+    embed = build_scan_summary_embed(
+        discovered=10,
+        prefiltered_out=0,
+        hydrated=1,
+        unchanged_skipped=0,
+        seller_filtered=0,
+        analysed=1,
+        assessments=0,
+        strict_matches=0,
+        provisional_matches=0,
+        alerts_sent=0,
+        errors=0,
+        groq_requests=1,
+        stop_reason="Groq rate limit reached",
+    )
+    assert embed["title"] == "SENDICO SCAN PAUSED"
+    assert "Groq rate limit" in embed["description"]

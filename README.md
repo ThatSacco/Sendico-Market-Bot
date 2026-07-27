@@ -112,6 +112,31 @@ Target names and watchlist details are not included in the Groq prompt. Groq ide
 
 Sendico sellers often photograph one physical card several times. The scanner now determines quantity from the greatest number of identical cards visible together in any single source photo rather than summing the same card across alternate photos. For example, five photos of one Ampharos are valued as `1x`; two identical Ampharos visible together in one overview photo are valued as `2x`, even when extra close-ups are also supplied.
 
+## Groq model pool and automatic fallback
+
+The scanner is no longer tied to one Groq model. `config.yaml` contains an ordered preferred pool and can also discover every active model exposed to your API key:
+
+```yaml
+vision:
+  models:
+    - "qwen/qwen3.6-27b"
+  auto_discover_models: true
+  max_model_attempts_per_request: 8
+  service_tier: "auto"
+```
+
+You may add any Groq model ID permitted for your account. For each card batch, the scanner:
+
+1. tries the last model that completed successfully;
+2. moves through the configured and account-discovered model pool;
+3. disables a model for the rest of the scan when it reaches a model quota, is unavailable/deprecated, lacks account permission, or rejects image input;
+4. retries without `response_format` when a model supports images but not Groq JSON mode;
+5. stops only after every usable candidate has failed.
+
+The Groq Models API does not currently report whether a model accepts images. Therefore, automatically discovered text/audio/safety models are filtered where possible, and any remaining text-only model is tested once and then skipped. A model still must support image input to identify cards; enabling text-only models cannot replace a vision model.
+
+The Discord completion summary lists the model or models that completed requests during the scan.
+
 ## TPM protection
 
 The default configuration is conservative for a limited Groq token-per-minute allowance:
@@ -124,7 +149,7 @@ vision:
   max_completion_tokens: 1600
 ```
 
-If Groq returns HTTP 413 because one request is too large, the batch is automatically divided. A one-card batch is retried once with a smaller compressed image. A normal HTTP 429 quota response stops the run cleanly so unprocessed listings can resume later.
+If one model returns HTTP 413 because a request is too large, the same batch is tried on other available models before it is divided. A one-card batch is retried once with a smaller compressed image. An HTTP 429 disables only the affected model for that run; the scan stops cleanly only when the whole usable model pool is exhausted.
 
 ## Listing deduplication and retry limit
 

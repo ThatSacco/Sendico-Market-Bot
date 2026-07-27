@@ -27,6 +27,14 @@ class VisionRequestTooLargeError(VisionRateLimitError):
     """Raised when one Groq request exceeds the model or account token budget."""
 
 
+class VisionRunBudgetReached(RuntimeError):
+    """Raised before another Groq request would exceed this scan run's budget."""
+
+
+class VisionModelPoolExhaustedError(VisionRateLimitError):
+    """Raised when no configured or discovered Groq model can handle the request."""
+
+
 @dataclass(slots=True)
 class _BatchResult:
     cards: list[IdentifiedCard]
@@ -447,9 +455,13 @@ class LotVisionAnalyzer:
     def __init__(
         self,
         api_key: str,
-        model: str,
+        model: str | None,
         max_images: int,
         *,
+        models: list[str] | tuple[str, ...] | None = None,
+        auto_discover_models: bool = False,
+        max_model_attempts_per_request: int = 8,
+        service_tier: str = "auto",
         max_local_crops: int = 40,
         crop_batch_size: int = 4,
         request_spacing_seconds: float = 65.0,
@@ -466,9 +478,23 @@ class LotVisionAnalyzer:
         card_aspect_ratio_max: float = 0.84,
         duplicate_phash_distance: int = 10,
         crop_padding_percent: float = 0.025,
+        max_requests_per_run: int = 12,
     ) -> None:
         self.api_key = api_key
-        self.model = model
+        configured_models: list[str] = []
+        for candidate in list(models or []):
+            value = str(candidate).strip()
+            if value and value not in configured_models:
+                configured_models.append(value)
+        legacy_model = str(model or "").strip()
+        if legacy_model and legacy_model not in configured_models:
+            configured_models.append(legacy_model)
+        self.configured_models = configured_models
+        self.models = list(configured_models)
+        self.model = self.models[0] if self.models else "auto-discovered"
+        self.auto_discover_models = bool(auto_discover_models)
+        self.max_model_attempts_per_request = max(1, int(max_model_attempts_per_request))
+        self.service_tier = str(service_tier or "auto").strip() or "auto"
         self.max_images = max(1, max_images)
         self.crop_batch_size = max(1, min(8, crop_batch_size))
         self.request_spacing_seconds = max(0.0, request_spacing_seconds)
@@ -476,7 +502,15 @@ class LotVisionAnalyzer:
         self.contact_sheet_max_dimension_px = max(500, contact_sheet_max_dimension_px)
         self.contact_sheet_jpeg_quality = max(55, min(92, contact_sheet_jpeg_quality))
         self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
-        self._last_request_started: float | None = None
+        self.models_endpoint = "https://api.groq.com/openai/v1/models"
+        self._last_request_started_by_model: dict[str, float] = {}
+        self._models_resolved = not self.auto_discover_models
+        self._preferred_model: str | None = None
+        self._disabled_models: dict[str, str] = {}
+        self.model_usage: dict[str, int] = {}
+        self.model_attempts: dict[str, int] = {}
+        self.max_requests_per_run = max(0, int(max_requests_per_run))
+        self.requests_sent = 0
         self.extractor = LocalCardExtractor(
             max_crops=max_local_crops,
             analysis_max_dimension_px=analysis_max_dimension_px,
@@ -489,6 +523,23 @@ class LotVisionAnalyzer:
             card_aspect_ratio_max=card_aspect_ratio_max,
             duplicate_phash_distance=duplicate_phash_distance,
             crop_padding_percent=crop_padding_percent,
+        )
+
+    @property
+    def configured_model_summary(self) -> str:
+        values = self.configured_models or ["automatic account discovery"]
+        suffix = " + auto-discovery" if self.auto_discover_models else ""
+        return ", ".join(values) + suffix
+
+    @property
+    def models_used_summary(self) -> str:
+        if not self.model_usage:
+            return "None completed"
+        return ", ".join(
+            f"{model} ({count})"
+            for model, count in sorted(
+                self.model_usage.items(), key=lambda item: (-item[1], item[0])
+            )
         )
 
     def analyze(self, listing: SendicoListing, targets: list[WatchCard]) -> VisionResult:
@@ -515,6 +566,15 @@ class LotVisionAnalyzer:
             crops[index : index + self.crop_batch_size]
             for index in range(0, len(crops), self.crop_batch_size)
         ]
+        if (
+            self.max_requests_per_run > 0
+            and self.requests_sent + len(batches) > self.max_requests_per_run
+        ):
+            remaining = max(0, self.max_requests_per_run - self.requests_sent)
+            raise VisionRunBudgetReached(
+                "Groq request budget reached before this listing: "
+                f"{remaining} request(s) remain, but {len(batches)} are planned"
+            )
         identified: list[IdentifiedCard] = []
         unidentified = 0
         completed_requests = 0
@@ -568,7 +628,7 @@ class LotVisionAnalyzer:
                 f"Local OpenCV preprocessing isolated {len(crops)} unique physical card crop(s).",
                 f"Groq identification used {completed_requests} small single-image request(s) across {len(batches)} planned batch(es).",
                 "Watchlist matching was applied locally after identification; target details were not added to the Groq prompt.",
-                "Alternate listing-photo duplicates were removed locally before Groq identification.",
+                "Physical quantity was anchored to one listing photo; alternate views could improve a matching crop but could not add quantity.",
                 *(
                     [
                         "A grading company and grade were taken from the explicit listing title; verify the slab label and certification number manually."
@@ -788,17 +848,213 @@ class LotVisionAnalyzer:
         )
         return output.getvalue()
 
-    def _wait_for_request_slot(self) -> None:
-        if self._last_request_started is not None and self.request_spacing_seconds > 0:
-            elapsed = time.monotonic() - self._last_request_started
+    @staticmethod
+    def _looks_like_chat_candidate(model_id: str) -> bool:
+        """Exclude models that clearly belong to non-chat API families.
+
+        The Groq Models endpoint currently does not expose input modalities, so
+        future or account-specific chat models are kept and tested lazily. Models
+        that reject images are disabled for the rest of the scan after one try.
+        """
+        lowered = model_id.casefold()
+        excluded_markers = (
+            "whisper",
+            "distil-whisper",
+            "orpheus",
+            "text-to-speech",
+            "tts",
+            "prompt-guard",
+            "safeguard",
+            "llama-guard",
+        )
+        return not any(marker in lowered for marker in excluded_markers)
+
+    @staticmethod
+    def _vision_likelihood(model_id: str) -> tuple[int, str]:
+        lowered = model_id.casefold()
+        likely_markers = (
+            "vision",
+            "multimodal",
+            "qwen3.6",
+            "qwen-vl",
+            "qwen2-vl",
+            "llava",
+            "pixtral",
+            "llama-4",
+            "scout",
+            "maverick",
+        )
+        return (0 if any(marker in lowered for marker in likely_markers) else 1, lowered)
+
+    def _resolve_models(self) -> None:
+        if self._models_resolved:
+            return
+        self._models_resolved = True
+        discovered: list[str] = []
+        try:
+            response = httpx.get(
+                self.models_endpoint,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            for raw in response.json().get("data", []):
+                model_id = str(raw.get("id") or "").strip()
+                if not model_id or raw.get("active") is False:
+                    continue
+                if self._looks_like_chat_candidate(model_id):
+                    discovered.append(model_id)
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning(
+                "Could not discover Groq account models; using configured model pool only: %s",
+                exc,
+            )
+            if not self.models:
+                raise VisionModelPoolExhaustedError(
+                    "Groq model discovery failed and no fallback models are configured"
+                ) from exc
+            return
+
+        discovered = list(dict.fromkeys(discovered))
+        discovered.sort(key=self._vision_likelihood)
+        discovered_set = set(discovered)
+        for configured in self.configured_models:
+            if configured not in discovered_set:
+                self._disabled_models[configured] = (
+                    "not returned by the Groq Models API for this account"
+                )
+
+        accessible_configured = [
+            model for model in self.configured_models if model in discovered_set
+        ]
+        self.models = list(
+            dict.fromkeys([*accessible_configured, *discovered])
+        )
+        LOGGER.info(
+            "Groq account model discovery returned %d chat candidate(s): %s",
+            len(self.models),
+            ", ".join(self.models) if self.models else "none",
+        )
+        if not self.models:
+            raise VisionModelPoolExhaustedError(
+                "Groq returned no active chat-model candidates for this account"
+            )
+
+    def _candidate_models(self) -> list[str]:
+        self._resolve_models()
+        enabled = [
+            model for model in self.models if model not in self._disabled_models
+        ]
+        if self._preferred_model in enabled:
+            enabled.remove(self._preferred_model)
+            enabled.insert(0, self._preferred_model)
+        return enabled[: self.max_model_attempts_per_request]
+
+    def _wait_for_request_slot(self, model: str) -> None:
+        previous = self._last_request_started_by_model.get(model)
+        if previous is not None and self.request_spacing_seconds > 0:
+            elapsed = time.monotonic() - previous
             remaining = self.request_spacing_seconds - elapsed
             if remaining > 0:
                 LOGGER.info(
-                    "Waiting %.1f seconds before the next Groq request to avoid the free-tier TPM window",
+                    "Waiting %.1f seconds before reusing Groq model %s to avoid its TPM window",
                     remaining,
+                    model,
                 )
                 time.sleep(remaining)
-        self._last_request_started = time.monotonic()
+        self._last_request_started_by_model[model] = time.monotonic()
+
+    @staticmethod
+    def _error_details(response: httpx.Response) -> tuple[str, str]:
+        error_code = ""
+        error_message = response.text[:1500]
+        if response.is_error:
+            try:
+                error_payload = response.json().get("error") or {}
+                error_code = str(error_payload.get("code") or "")
+                error_message = str(error_payload.get("message") or error_message)
+            except Exception:  # noqa: BLE001
+                pass
+        return error_code, error_message
+
+    @staticmethod
+    def _is_model_compatibility_error(status_code: int, message: str) -> bool:
+        lowered = message.casefold()
+        markers = (
+            "does not support image",
+            "doesn't support image",
+            "does not support vision",
+            "vision is not supported",
+            "image input is not supported",
+            "image inputs are not supported",
+            "image_url is not supported",
+            "unsupported type: image_url",
+            "multimodal input",
+            "unsupported content type",
+            "content must be a string",
+            "model not found",
+            "model does not exist",
+            "model is not available",
+            "model is decommissioned",
+            "model has been deprecated",
+            "not permitted to use model",
+            "permission to use model",
+            "model permission",
+            "do not have access",
+            "not have access",
+            "not allowed to use",
+        )
+        return status_code in {400, 403, 404, 422} and any(
+            marker in lowered for marker in markers
+        )
+
+    @staticmethod
+    def _is_json_mode_error(status_code: int, message: str) -> bool:
+        lowered = message.casefold()
+        return status_code in {400, 422} and (
+            "response_format" in lowered
+            or "json mode" in lowered
+            or "json_object" in lowered
+        )
+
+    def _post_model_request(
+        self,
+        model: str,
+        content: list[dict[str, Any]],
+        *,
+        json_mode: bool,
+    ) -> httpx.Response:
+        if (
+            self.max_requests_per_run > 0
+            and self.requests_sent >= self.max_requests_per_run
+        ):
+            raise VisionRunBudgetReached(
+                f"Groq request budget of {self.max_requests_per_run} reached for this scan"
+            )
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": [{"role": "user", "content": content}],
+            "temperature": 0.1,
+            "top_p": 1,
+            "max_completion_tokens": self.max_completion_tokens,
+            "stream": False,
+            "service_tier": self.service_tier,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+        self._wait_for_request_slot(model)
+        self.requests_sent += 1
+        self.model_attempts[model] = self.model_attempts.get(model, 0) + 1
+        return httpx.post(
+            self.endpoint,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=240.0,
+        )
 
     def _generate(self, parts: list[dict[str, Any]]) -> dict[str, Any]:
         content: list[dict[str, Any]] = []
@@ -824,56 +1080,134 @@ class LotVisionAnalyzer:
                 f"Local-crop Groq requests must contain exactly one contact-sheet image; got {image_count}"
             )
 
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": content}],
-            "temperature": 0.1,
-            "top_p": 1,
-            "max_completion_tokens": self.max_completion_tokens,
-            "response_format": {"type": "json_object"},
-            "reasoning_effort": "none",
-            "stream": False,
-        }
-        self._wait_for_request_slot()
-        response = httpx.post(
-            self.endpoint,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=240.0,
-        )
+        candidates = self._candidate_models()
+        if not candidates:
+            reasons = "; ".join(
+                f"{model}: {reason}"
+                for model, reason in self._disabled_models.items()
+            )
+            raise VisionModelPoolExhaustedError(
+                "No Groq model remains available for this scan"
+                + (f" ({reasons})" if reasons else "")
+            )
 
-        error_code = ""
-        error_message = response.text[:1500]
-        if response.is_error:
-            try:
-                error_payload = response.json().get("error") or {}
-                error_code = str(error_payload.get("code") or "")
-                error_message = str(error_payload.get("message") or error_message)
-            except Exception:  # noqa: BLE001
-                pass
+        too_large_errors: list[str] = []
+        rate_limit_errors: list[str] = []
+        transient_errors: list[str] = []
 
-        lowered_message = error_message.lower()
-        if response.status_code == 413 and (
-            error_code == "rate_limit_exceeded"
-            or "request too large" in lowered_message
-            or "requested" in lowered_message and "tokens per minute" in lowered_message
-        ):
+        for model in candidates:
+            json_mode = True
+            while True:
+                LOGGER.info("Trying Groq model %s", model)
+                response = self._post_model_request(
+                    model,
+                    content,
+                    json_mode=json_mode,
+                )
+                error_code, error_message = self._error_details(response)
+                lowered_message = error_message.casefold()
+
+                if not response.is_error:
+                    try:
+                        parsed = _json_object(self._extract_text(response.json()))
+                    except Exception as exc:  # noqa: BLE001
+                        transient_errors.append(
+                            f"{model}: invalid JSON response ({exc})"
+                        )
+                        LOGGER.warning(
+                            "Groq model %s returned an unusable response; trying the next model: %s",
+                            model,
+                            exc,
+                        )
+                        break
+                    self._preferred_model = model
+                    self.model = model
+                    self.model_usage[model] = self.model_usage.get(model, 0) + 1
+                    return parsed
+
+                if response.status_code == 413 and (
+                    error_code == "rate_limit_exceeded"
+                    or "request too large" in lowered_message
+                    or (
+                        "requested" in lowered_message
+                        and "tokens per minute" in lowered_message
+                    )
+                ):
+                    too_large_errors.append(f"{model}: {error_message}")
+                    LOGGER.warning(
+                        "Groq model %s rejected this image batch as too large; trying another model",
+                        model,
+                    )
+                    break
+
+                if response.status_code == 429 or error_code == "rate_limit_exceeded":
+                    reason = f"rate limited: {error_message}"
+                    self._disabled_models[model] = reason
+                    rate_limit_errors.append(f"{model}: {error_message}")
+                    LOGGER.warning(
+                        "Groq model %s reached a quota; switching to the next model",
+                        model,
+                    )
+                    break
+
+                if json_mode and self._is_json_mode_error(
+                    response.status_code, error_message
+                ):
+                    LOGGER.warning(
+                        "Groq model %s does not accept JSON mode; retrying it with prompt-only JSON instructions",
+                        model,
+                    )
+                    json_mode = False
+                    continue
+
+                if self._is_model_compatibility_error(
+                    response.status_code, error_message
+                ):
+                    self._disabled_models[model] = error_message
+                    LOGGER.warning(
+                        "Groq model %s cannot process this vision request and will be skipped for the rest of the run: %s",
+                        model,
+                        error_message,
+                    )
+                    break
+
+                if response.status_code in {500, 502, 503, 504}:
+                    transient_errors.append(f"{model}: {error_message}")
+                    LOGGER.warning(
+                        "Groq model %s returned HTTP %s; trying the next model",
+                        model,
+                        response.status_code,
+                    )
+                    break
+
+                raise RuntimeError(
+                    f"Groq API returned HTTP {response.status_code} from model {model}: {error_message}"
+                )
+
+        if too_large_errors:
             raise VisionRequestTooLargeError(
-                f"Groq API returned HTTP 413: {error_message}"
+                "All available Groq models rejected this request as too large: "
+                + " | ".join(too_large_errors)
             )
-        if response.status_code == 429 or error_code == "rate_limit_exceeded":
-            raise VisionRateLimitError(
-                f"Groq API returned HTTP {response.status_code}: {error_message}"
+        if rate_limit_errors or self._disabled_models:
+            details = [*rate_limit_errors]
+            details.extend(
+                f"{model}: {reason}"
+                for model, reason in self._disabled_models.items()
+                if not any(item.startswith(f"{model}:") for item in details)
             )
-        if response.is_error:
+            raise VisionModelPoolExhaustedError(
+                "All Groq model candidates are rate-limited, unavailable, or incompatible: "
+                + " | ".join(details)
+            )
+        if transient_errors:
             raise RuntimeError(
-                f"Groq API returned HTTP {response.status_code}: {error_message}"
+                "All Groq model candidates failed temporarily: "
+                + " | ".join(transient_errors)
             )
-        data = response.json()
-        return _json_object(self._extract_text(data))
+        raise VisionModelPoolExhaustedError(
+            "No Groq model candidate could complete the vision request"
+        )
 
     def _download_images(self, image_urls: list[str]) -> list[DownloadedImage]:
         images: list[DownloadedImage] = []

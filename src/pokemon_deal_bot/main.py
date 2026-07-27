@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import unicodedata
 
 from .config import (
     load_config,
@@ -16,6 +17,7 @@ from .discord import (
     send_discord_test,
     send_discord_test_error,
     send_discord_test_start,
+    send_discord_summary,
 )
 from .fx import FxClient
 from .models import DealAssessment, SendicoListing
@@ -23,7 +25,11 @@ from .pricecharting import PriceChartingClient
 from .reporting import write_reports
 from .sendico import SendicoMercariScanner
 from .state import StateStore
-from .vision import LotVisionAnalyzer, VisionRateLimitError
+from .vision import (
+    LotVisionAnalyzer,
+    VisionRateLimitError,
+    VisionRunBudgetReached,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +55,89 @@ def _merge_listing(existing: SendicoListing, found: SendicoListing) -> SendicoLi
     return existing
 
 
+def _compact_search(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return "".join(character for character in normalized if character.isalnum())
+
+
+def _candidate_relevance_score(
+    listing: SendicoListing,
+    targets,
+) -> int:
+    """Score a search result before spending a Groq request on it.
+
+    The filter is intentionally based on explicit names, printed numbers and set
+    references. A result with no local evidence for any active watchlist rule is
+    skipped; direct test URLs bypass this filter in ``run``.
+    """
+    haystack = _compact_search(
+        " ".join([listing.title, listing.raw_text, listing.description[:500]])
+    )
+    if not haystack:
+        return 0
+
+    best = 0
+    for target in targets:
+        score = 0
+        names = [
+            *target.english_names,
+            *target.japanese_names,
+        ]
+        name_match = any(
+            compact_name and compact_name in haystack
+            for compact_name in (_compact_search(name) for name in names)
+        )
+        if name_match:
+            score += 60
+
+        if target.match_mode == "exact_card" and target.card_number:
+            full_number = _compact_search(target.card_number)
+            numerator = _compact_search(str(target.card_number).split("/", 1)[0])
+            if full_number and full_number in haystack:
+                score += 100
+            elif name_match and numerator and numerator in haystack:
+                score += 20
+
+        set_values = [
+            target.set_name,
+            target.set_code,
+            *target.accepted_sets,
+            *target.accepted_set_codes,
+        ]
+        if any(
+            compact_set and compact_set in haystack
+            for compact_set in (_compact_search(value) for value in set_values)
+        ):
+            score += 20
+
+        if any(
+            compact_term and compact_term in haystack
+            for compact_term in (
+                _compact_search(term) for term in target.search_terms
+            )
+        ):
+            score += 30
+
+        best = max(best, score)
+
+    # Keep generic multi-card lots as low-priority candidates because the target
+    # may be visible in the photos even when the seller did not name it. Strong
+    # explicit matches are always ranked ahead of these fallback candidates.
+    if best == 0:
+        generic_lot_terms = [
+            "lot",
+            "collection",
+            "bundle",
+            "まとめ",
+            "セット",
+            "引退",
+            "大量",
+        ]
+        if any(_compact_search(term) in haystack for term in generic_lot_terms):
+            return 5
+    return best
+
+
 async def run(config_path: str, dry_run: bool = False) -> int:
     config = load_config(config_path)
     targets = load_watchlist(config)
@@ -61,6 +150,23 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     )
 
     vision_cfg = config.raw["vision"]
+    configured_models_raw = vision_cfg.get("models") or []
+    if isinstance(configured_models_raw, str):
+        configured_models = [configured_models_raw]
+    else:
+        configured_models = [
+            str(value).strip()
+            for value in configured_models_raw
+            if str(value).strip()
+        ]
+    legacy_model = str(vision_cfg.get("model") or "").strip()
+    if legacy_model and legacy_model not in configured_models:
+        configured_models.append(legacy_model)
+    auto_discover_models = bool(vision_cfg.get("auto_discover_models", True))
+    model_pool_label = ", ".join(configured_models) or "automatic discovery"
+    if auto_discover_models:
+        model_pool_label += " + account discovery"
+
     if vision_cfg.get("enabled", True) and not config.groq_api_key:
         raise RuntimeError(
             "GROQ_API_KEY is required to identify cards in lot images"
@@ -93,7 +199,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     send_discord_test_start,
                     config.discord_webhook_url,
                     str(config.raw["discord"].get("username", "Pokemon Deal Scout")),
-                    str(vision_cfg["model"]),
+                    model_pool_label,
                     test_alert_limit,
                 )
             except Exception:
@@ -122,7 +228,13 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     )
     vision = LotVisionAnalyzer(
         api_key=config.groq_api_key or "",
-        model=str(vision_cfg["model"]),
+        model=legacy_model or None,
+        models=configured_models,
+        auto_discover_models=auto_discover_models,
+        max_model_attempts_per_request=int(
+            vision_cfg.get("max_model_attempts_per_request", 8)
+        ),
+        service_tier=str(vision_cfg.get("service_tier", "auto")),
         max_images=int(vision_cfg["max_images_per_listing"]),
         max_local_crops=int(vision_cfg.get("max_local_crops_per_listing", 40)),
         crop_batch_size=int(vision_cfg.get("crop_batch_size", 4)),
@@ -166,10 +278,23 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         crop_padding_percent=float(
             vision_cfg.get("crop_padding_percent", 0.025)
         ),
+        max_requests_per_run=int(
+            vision_cfg.get("max_groq_requests_per_run", 12)
+        ),
     )
     state = StateStore(config.path("data/seen.json"))
     candidates = {}
     assessments: list[DealAssessment] = []
+    direct_codes: set[str] = set()
+    discovered_count = 0
+    prefiltered_out = 0
+    hydrated_count = 0
+    unchanged_skipped = 0
+    seller_filtered = 0
+    vision_analyses_started = 0
+    alerts_sent = 0
+    processing_errors = 0
+    stop_reason: str | None = None
 
     try:
         async with SendicoMercariScanner(config.raw["sendico"]) as scanner:
@@ -178,6 +303,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 for url in test_cfg.get("direct_listing_urls", [])
                 if str(url).strip()
             ]
+            direct_codes = {
+                url.rstrip("/").split("/")[-1] for url in direct_urls
+            }
             for direct_url in direct_urls:
                 code = direct_url.rstrip("/").split("/")[-1]
                 candidates[code] = SendicoListing(
@@ -223,11 +351,8 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     len(direct_urls),
                 )
             else:
-                direct_codes = [
-                    url.rstrip("/").split("/")[-1] for url in direct_urls
-                ]
                 search_terms = list(
-                    dict.fromkeys([*direct_codes, *configured_terms])
+                    dict.fromkeys([*sorted(direct_codes), *configured_terms])
                 )
 
             for term in search_terms:
@@ -249,20 +374,44 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     else:
                         _merge_listing(existing, found_listing)
 
-            limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
-            listings_to_process = list(candidates.values())
+            discovered_count = len(candidates)
+            prefilter_enabled = bool(
+                config.raw["sendico"].get("prefilter_watchlist_relevance", True)
+            )
+            ranked_candidates: list[tuple[int, SendicoListing]] = []
+            for candidate in candidates.values():
+                if candidate.code in direct_codes:
+                    score = 10_000
+                else:
+                    score = _candidate_relevance_score(candidate, targets)
+                if prefilter_enabled and score <= 0:
+                    prefiltered_out += 1
+                    LOGGER.info(
+                        "Skipping search result %s before hydration/Groq: no "
+                        "watchlist name, number or set evidence in its result text",
+                        candidate.code,
+                    )
+                    continue
+                ranked_candidates.append((score, candidate))
+
+            ranked_candidates.sort(key=lambda item: item[0], reverse=True)
+            listings_to_process = [candidate for _, candidate in ranked_candidates]
+            limit = int(config.raw["sendico"].get("max_listings_per_run", 0))
             if limit > 0:
                 listings_to_process = listings_to_process[:limit]
 
             LOGGER.info(
-                "Processing %d unique Sendico listings%s",
+                "Search found %d unique listing(s); %d passed local relevance "
+                "filtering and %d were filtered before Groq",
+                discovered_count,
                 len(listings_to_process),
-                " without a configured listing cap" if limit <= 0 else "",
+                prefiltered_out,
             )
 
             for listing in listings_to_process:
                 try:
                     listing = await scanner.hydrate(listing)
+                    hydrated_count += 1
 
                     if state.unchanged(
                         listing,
@@ -277,6 +426,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             attempts,
                             max_retry_attempts,
                         )
+                        unchanged_skipped += 1
                         continue
 
                     if test_mode:
@@ -299,6 +449,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                                 "seller rating unverified",
                                 scan_signature,
                             )
+                            seller_filtered += 1
                             continue
 
                         if listing.seller_positive_ratings is None:
@@ -317,8 +468,26 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             )
                             LOGGER.info("Rejecting %s: %s", listing.code, outcome)
                             state.update(listing, False, outcome, scan_signature)
+                            seller_filtered += 1
                             continue
 
+                    max_vision_listings = max(
+                        0,
+                        int(vision_cfg.get("max_listing_analyses_per_run", 10)),
+                    )
+                    if (
+                        max_vision_listings > 0
+                        and vision_analyses_started >= max_vision_listings
+                    ):
+                        stop_reason = (
+                            "Stopped at the configured Groq listing-analysis cap "
+                            f"of {max_vision_listings}; remaining eligible listings "
+                            "will be considered on the next run."
+                        )
+                        LOGGER.info(stop_reason)
+                        break
+
+                    vision_analyses_started += 1
                     vision_result = await asyncio.to_thread(
                         vision.analyze,
                         listing,
@@ -453,6 +622,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                                 ),
                             )
                             alerted = True
+                            alerts_sent += 1
 
                     if assessment.qualifies:
                         outcome = "qualifies"
@@ -469,7 +639,17 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         scan_signature,
                     )
 
+                except VisionRunBudgetReached as exc:
+                    stop_reason = str(exc)
+                    LOGGER.info(
+                        "Stopping before another Groq request would exceed the "
+                        "configured per-run budget: %s",
+                        exc,
+                    )
+                    break
+
                 except VisionRateLimitError as exc:
+                    stop_reason = f"Groq rate limit reached: {exc}"
                     LOGGER.warning(
                         "Groq rate limit reached; recording this attempt and "
                         "stopping the run so remaining listings can resume next "
@@ -485,6 +665,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     break
 
                 except Exception as exc:  # noqa: BLE001 - continue other listings
+                    processing_errors += 1
                     LOGGER.exception(
                         "Listing processing failed for %s: %s",
                         listing.url,
@@ -526,13 +707,57 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         state.save()
         write_reports(config.root, assessments)
 
+    strict_count = sum(a.qualifies for a in assessments)
+    provisional_count = sum(a.provisional_qualifies for a in assessments)
+
+    if (
+        not dry_run
+        and config.raw["discord"].get("enabled", True)
+        and config.raw["discord"].get("send_completion_summary", True)
+        and config.discord_webhook_url
+    ):
+        try:
+            await asyncio.to_thread(
+                send_discord_summary,
+                config.discord_webhook_url,
+                str(
+                    config.raw["discord"].get(
+                        "username",
+                        "Pokemon Deal Scout",
+                    )
+                ),
+                discovered=discovered_count,
+                prefiltered_out=prefiltered_out,
+                hydrated=hydrated_count,
+                unchanged_skipped=unchanged_skipped,
+                seller_filtered=seller_filtered,
+                analysed=vision_analyses_started,
+                assessments=len(assessments),
+                strict_matches=strict_count,
+                provisional_matches=provisional_count,
+                alerts_sent=alerts_sent,
+                errors=processing_errors,
+                groq_requests=vision.requests_sent,
+                groq_models=vision.models_used_summary,
+                stop_reason=stop_reason,
+            )
+        except Exception:
+            LOGGER.exception("Could not send the Discord scan-completion summary")
+
     LOGGER.info(
-        "Completed: %d assessments, %d strict qualifying, %d provisional, "
-        "%d test alerts",
+        "Completed: %d discovered, %d filtered before Groq, %d assessments, "
+        "%d strict qualifying, %d provisional, %d deal alerts, %d test alerts, "
+        "%d Groq requests%s",
+        discovered_count,
+        prefiltered_out,
         len(assessments),
-        sum(a.qualifies for a in assessments),
-        sum(a.provisional_qualifies for a in assessments),
+        strict_count,
+        provisional_count,
+        alerts_sent,
         test_alerts_sent,
+        vision.requests_sent,
+        f"; models used: {vision.models_used_summary}"
+        + (f"; stopped: {stop_reason}" if stop_reason else ""),
     )
     return 0
 

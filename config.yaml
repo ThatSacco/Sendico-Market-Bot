@@ -26,10 +26,11 @@ seller_verification:
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
 
-  # Zero means no configured cap. Previously processed unchanged listings are
-  # skipped, and the run pauses cleanly if the Groq free-tier limit is reached.
+  # Zero keeps every result returned by Sendico. Search-result text is then
+  # checked locally against the watchlist before any detail page or Groq call.
   max_results_per_search: 0
   max_listings_per_run: 0
+  prefilter_watchlist_relevance: true
   page_timeout_ms: 60000
 
   # Zero means no fixed scroll-round cap. Scrolling stops after three rounds
@@ -47,6 +48,22 @@ sendico:
 vision:
   enabled: true
   provider: "groq"
+
+  # Ordered preferred model pool. You may add any Groq model ID enabled for
+  # your account. The bot automatically moves to the next model when one is
+  # rate-limited, unavailable, deprecated, or rejects image input.
+  models:
+    - "qwen/qwen3.6-27b"
+
+  # Query GET /openai/v1/models at the start of the first vision request and
+  # append other active account models. Models that do not support images are
+  # tested once, then skipped for the remainder of that scan.
+  auto_discover_models: true
+  max_model_attempts_per_request: 8
+  service_tier: "auto"
+
+  # Legacy single-model key retained for compatibility with older checkouts.
+  # The models list above takes priority.
   model: "qwen/qwen3.6-27b"
 
   # Download up to 12 Sendico photos, then detect and crop card-shaped regions
@@ -68,6 +85,11 @@ vision:
   # Perceptual hashing removes alternate-photo views without merging two
   # identical physical cards that appear together in the same overview photo.
   duplicate_phash_distance: 10
+
+  # Protect the free Groq allowance. At most ten listing analyses and twelve
+  # Groq requests are started in one scan. Already-seen listings do not count.
+  max_listing_analyses_per_run: 10
+  max_groq_requests_per_run: 12
 
   # Each Groq request contains one small JPEG contact sheet. Four crops per
   # request is deliberately conservative for the 8,000 TPM free-tier limit.
@@ -101,3 +123,6 @@ sendico_fee:
 discord:
   username: "Pokemon Deal Scout"
   enabled: true
+  # Send a brief result summary after every run, including zero-match and
+  # Groq-quota-paused scans.
+  send_completion_summary: true

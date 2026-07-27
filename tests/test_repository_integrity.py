@@ -38,3 +38,17 @@ def test_price_override_file_is_valid_csv() -> None:
     assert path.read_text(encoding="utf-8").splitlines()[0] == (
         "key,name,set_code,card_number,price_aud"
     )
+
+
+def test_reliability_guards_are_enabled_in_default_config() -> None:
+    import yaml
+
+    config = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+
+    assert config["sendico"]["prefilter_watchlist_relevance"] is True
+    assert config["vision"]["max_listing_analyses_per_run"] == 10
+    assert config["vision"]["max_groq_requests_per_run"] == 12
+    assert config["vision"]["auto_discover_models"] is True
+    assert config["vision"]["max_model_attempts_per_request"] >= 2
+    assert config["vision"]["models"]
+    assert config["discord"]["send_completion_summary"] is True

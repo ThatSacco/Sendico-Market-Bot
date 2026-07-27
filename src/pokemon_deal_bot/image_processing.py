@@ -80,6 +80,13 @@ class LocalCardExtractor:
         self.crop_padding_percent = max(0.0, min(0.12, crop_padding_percent))
 
     def extract(self, images: list[DownloadedImage]) -> list[CardCrop]:
+        """Return one crop slot per physical card visible in one anchor photo.
+
+        Quantity is fixed by the legitimate listing photo containing the largest
+        number of card-shaped regions. Alternate photos may replace an anchor
+        crop with a sharper perceptually matching view, but an unmatched front,
+        back, close-up or slab photo can never create another physical-card slot.
+        """
         candidates_by_image: dict[int, list[_Candidate]] = {}
         for downloaded in images:
             try:
@@ -106,24 +113,20 @@ class LocalCardExtractor:
         if not nonempty:
             return []
 
-        anchor_index = max(
+        # The image with the most simultaneous cards defines physical quantity.
+        # Ties prefer the earliest listing photo, which is normally the seller's
+        # overview/front image rather than a later back or detail photo.
+        anchor_index = min(
             nonempty,
-            key=lambda index: (
-                len(nonempty[index]),
-                sum(item.quality_score for item in nonempty[index]),
-                -index,
-            ),
-        )
-
-        # Each group represents one physical card. The anchor image fixes the
-        # count, so two identical cards next to each other remain two groups.
-        groups: list[_Candidate] = list(nonempty[anchor_index])
-        source_order = sorted(
-            (index for index in nonempty if index != anchor_index),
             key=lambda index: (-len(nonempty[index]), index),
         )
 
-        duplicates_removed = 0
+        groups: list[_Candidate] = list(nonempty[anchor_index])
+        source_order = sorted(index for index in nonempty if index != anchor_index)
+
+        replacements = 0
+        matched_alternates = 0
+        ignored_unmatched = 0
         for image_index in source_order:
             matched_group_indexes: set[int] = set()
             for candidate in sorted(
@@ -149,18 +152,21 @@ class LocalCardExtractor:
                     and best_distance <= self.duplicate_phash_distance
                 ):
                     matched_group_indexes.add(best_group)
-                    duplicates_removed += 1
+                    matched_alternates += 1
                     if candidate.quality_score > groups[best_group].quality_score:
-                        # Keep the physical-card slot but use the sharper alternate
-                        # view for OCR and card identification.
                         groups[best_group] = replace(
                             candidate,
+                            # Preserve the anchor image as quantity evidence even
+                            # when a sharper alternate photo supplies the pixels.
+                            source_image_index=groups[best_group].source_image_index,
                             sort_key=groups[best_group].sort_key,
                         )
+                        replacements += 1
                     continue
 
-                groups.append(candidate)
-                matched_group_indexes.add(len(groups) - 1)
+                # Do not append unmatched alternate views. This is the critical
+                # quantity guard for front/back/close-up photos of one card.
+                ignored_unmatched += 1
 
         groups = groups[: self.max_crops]
         crops = [
@@ -175,10 +181,14 @@ class LocalCardExtractor:
             for index, item in enumerate(groups, start=1)
         ]
         LOGGER.info(
-            "Local preprocessing selected %d unique physical card crop(s); "
-            "removed %d alternate-photo duplicate(s)",
+            "Local preprocessing anchored quantity to image %d with %d physical "
+            "card slot(s); matched %d alternate view(s), used %d sharper "
+            "replacement(s), ignored %d unmatched alternate crop(s)",
+            anchor_index,
             len(crops),
-            duplicates_removed,
+            matched_alternates,
+            replacements,
+            ignored_unmatched,
         )
         return crops
 
