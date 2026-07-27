@@ -8,7 +8,6 @@ from typing import Any
 
 import httpx
 
-
 from .models import IdentifiedCard, SendicoListing, VisionResult, WatchCard
 
 LOGGER = logging.getLogger(__name__)
@@ -68,11 +67,13 @@ def parse_vision_result(payload: dict[str, Any], target: WatchCard) -> VisionRes
 
 class LotVisionAnalyzer:
     def __init__(self, api_key: str, model: str, max_images: int) -> None:
-        from openai import OpenAI
-
-        self.client = OpenAI(api_key=api_key)
+        self.api_key = api_key
         self.model = model
         self.max_images = max_images
+        self.endpoint = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.model}:generateContent"
+        )
 
     def analyze(self, listing: SendicoListing, target: WatchCard) -> VisionResult:
         prompt = f"""
@@ -92,7 +93,7 @@ LISTING TITLE:
 LISTING TEXT:
 {listing.description[:12000]}
 
-Inspect every supplied image. Identify every visible Japanese Pokemon card that can be identified with high confidence. Do not guess hidden, blurry, partially covered, or unreadable cards. Exact card number is mandatory for inclusion. Combine duplicates and provide quantity. Only include raw cards; ignore slabs, empty sleeves, boxes and accessories. The target is present only if the artwork/name and exact number 097/086 are consistent.
+Inspect every supplied image. Identify every visible Japanese Pokemon card that can be identified with high confidence. Do not guess hidden, blurry, partially covered, or unreadable cards. Exact card number is mandatory for inclusion. Combine duplicates and provide quantity. Only include raw cards; ignore slabs, empty sleeves, boxes and accessories. The target is present only if the artwork/name and exact number {target.card_number} are consistent.
 
 Return JSON only with this shape:
 {{
@@ -118,18 +119,50 @@ Return JSON only with this shape:
   "notes": []
 }}
 """.strip()
-        content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
+
+        parts: list[dict[str, Any]] = [{"text": prompt}]
         for image_url in listing.image_urls[: self.max_images]:
-            content.append(self._image_part(image_url))
-        response = self.client.responses.create(
-            model=self.model,
-            input=[{"role": "user", "content": content}],
+            image_part = self._image_part(image_url)
+            if image_part is not None:
+                parts.append(image_part)
+
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": parts,
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+            },
+        }
+
+        response = httpx.post(
+            self.endpoint,
+            params={"key": self.api_key},
+            json=payload,
+            timeout=120.0,
         )
-        payload = _json_object(response.output_text)
-        return parse_vision_result(payload, target)
+        response.raise_for_status()
+        data = response.json()
+        text = self._extract_text(data)
+        parsed = _json_object(text)
+        return parse_vision_result(parsed, target)
 
     @staticmethod
-    def _image_part(image_url: str) -> dict[str, Any]:
+    def _extract_text(data: dict[str, Any]) -> str:
+        candidates = data.get("candidates", [])
+        for candidate in candidates:
+            content = candidate.get("content", {})
+            for part in content.get("parts", []):
+                if "text" in part and part["text"]:
+                    return str(part["text"])
+        raise ValueError(f"Gemini response did not contain text content: {data}")
+
+    @staticmethod
+    def _image_part(image_url: str) -> dict[str, Any] | None:
         try:
             response = httpx.get(
                 image_url,
@@ -148,10 +181,11 @@ Return JSON only with this shape:
             mime = response.headers.get("content-type", "image/jpeg").split(";")[0]
             encoded = base64.b64encode(response.content).decode("ascii")
             return {
-                "type": "input_image",
-                "image_url": f"data:{mime};base64,{encoded}",
-                "detail": "high",
+                "inline_data": {
+                    "mime_type": mime,
+                    "data": encoded,
+                }
             }
         except Exception as exc:  # noqa: BLE001
-            LOGGER.warning("Could not download listing image; passing URL directly: %s", exc)
-            return {"type": "input_image", "image_url": image_url, "detail": "high"}
+            LOGGER.warning("Could not download image for Gemini analysis: %s", exc)
+            return None
