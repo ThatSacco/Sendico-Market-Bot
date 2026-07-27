@@ -1,20 +1,30 @@
-# Production pricing and twice-weekly schedule update
+# Variant and multi-photo update
 
-Upload the contents of this patch to the root of the GitHub repository and replace the existing files.
+Upload the contents of this folder to the root of the GitHub repository and replace the matching files.
 
-This update:
+Files replaced:
 
-- switches `test_mode` off;
-- removes the 20% saving requirement;
-- alerts on confirmed target listings regardless of positive or negative variance;
-- prices Japanese cards identified by Gemini at 95% confidence or higher;
-- accepts PriceCharting matches at 95% confidence or higher;
-- shows total PriceCharting lot value, total Sendico cost and AUD/% variance;
-- fixes the ¥800 Sendico fee;
-- runs Monday and Thursday at 00:00 UTC;
-- limits each run to six listings to control Gemini usage;
-- preserves the existing Gemini and Discord secrets.
+- `config.yaml`
+- `src/pokemon_deal_bot/models.py`
+- `src/pokemon_deal_bot/vision.py`
+- `src/pokemon_deal_bot/pricecharting.py`
+- `src/pokemon_deal_bot/main.py`
+- `src/pokemon_deal_bot/discord.py`
+- three test files under `tests/`
 
-After committing the files, run the workflow manually once to verify the production alert format.
+After committing to `main`, manually run **Scan Sendico Pokemon Deals** once.
 
-The next planned update is multi-card watchlist support: add or remove cards in `data/watchlist.yaml` without manually editing `config.yaml` search terms.
+## Behaviour changes
+
+- Scans up to 10 listings per run.
+- Gemini reviews up to 12 Sendico listing photos.
+- Up to 6 full listing photos are supplied with the enlarged crops in pass 2 to help verify foil variant and condition.
+- Alternate photos are supporting evidence only and are not counted as extra cards.
+- Every identified card defaults to `normal_holo`.
+- `poke_ball`, `master_ball`, `reverse_holo`, or `other` is used only when Gemini explicitly confirms the special pattern from the images or listing text.
+- PriceCharting premium-variant results are rejected unless the identified card has that same explicit variant.
+- An unspecified `other` variant is left unpriced rather than guessed.
+- Discord lists the variant beside every identified/priced card.
+- Seller ratings may continue to require manual verification.
+
+The twice-weekly Monday/Thursday GitHub Actions schedule is unchanged.

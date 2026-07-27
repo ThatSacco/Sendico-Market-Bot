@@ -55,3 +55,38 @@ def test_match_rejects_same_number_wrong_set():
         "https://www.pricecharting.com/game/pokemon-japanese-tag-all-stars/victini-11",
     )
     assert score < 0.95
+
+
+def test_normal_holo_rejects_master_ball_price():
+    card = _card("012/086", "Black Bolt", "sv11B")
+    card.variant = "normal_holo"
+    text = (
+        "Victini [Master Ball] #12 Prices | Pokemon Japanese Black Bolt "
+        "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-master-ball-12"
+    )
+    assert identity_match_confidence(card, text) == 0.0
+
+
+def test_normal_holo_accepts_regular_or_standard_holo_price():
+    card = _card("012/086", "Black Bolt", "sv11B")
+    card.variant = "normal_holo"
+    text = (
+        "Victini #12 Prices | Pokemon Japanese Black Bolt "
+        "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-12"
+    )
+    assert identity_match_confidence(card, text) == 1.0
+
+
+def test_master_ball_requires_master_ball_price():
+    card = _card("012/086", "Black Bolt", "sv11B")
+    card.variant = "master_ball"
+    regular = (
+        "Victini #12 Prices | Pokemon Japanese Black Bolt "
+        "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-12"
+    )
+    premium = (
+        "Victini [Master Ball] #12 Prices | Pokemon Japanese Black Bolt "
+        "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-master-ball-12"
+    )
+    assert identity_match_confidence(card, regular) == 0.0
+    assert identity_match_confidence(card, premium) == 1.0

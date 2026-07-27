@@ -119,6 +119,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         ),
         crop_padding_percent=float(vision_cfg.get("crop_padding_percent", 0.06)),
         crop_max_dimension_px=int(vision_cfg.get("crop_max_dimension_px", 1400)),
+        supporting_images_in_crop_pass=int(
+            vision_cfg.get("supporting_images_in_crop_pass", 6)
+        ),
     )
     state = StateStore(config.path("data/seen.json"))
     candidates = {}

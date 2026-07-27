@@ -159,3 +159,50 @@ def test_only_one_identity_is_kept_per_crop():
     assert len(result.cards) == 1
     assert result.cards[0].card_number == "011/054"
     assert result.unidentified_card_count == 1
+
+
+def test_variant_defaults_to_normal_holo():
+    result = parse_vision_result(
+        {
+            "listing_type": "single",
+            "target_present": False,
+            "target_confidence": 0.0,
+            "cards": [
+                {
+                    "name_en": "Victini",
+                    "set_name": "Black Bolt",
+                    "set_code": "sv11B",
+                    "card_number": "012/086",
+                    "language": "Japanese",
+                    "confidence": 0.95,
+                }
+            ],
+            "unidentified_card_count": 0,
+        },
+        _target(),
+    )
+    assert result.cards[0].variant == "normal_holo"
+
+
+def test_explicit_master_ball_variant_is_retained():
+    result = parse_vision_result(
+        {
+            "listing_type": "single",
+            "target_present": False,
+            "target_confidence": 0.0,
+            "cards": [
+                {
+                    "name_en": "Victini",
+                    "set_name": "Black Bolt",
+                    "set_code": "sv11B",
+                    "card_number": "012/086",
+                    "language": "Japanese",
+                    "confidence": 0.98,
+                    "variant": "master_ball",
+                }
+            ],
+            "unidentified_card_count": 0,
+        },
+        _target(),
+    )
+    assert result.cards[0].variant == "master_ball"

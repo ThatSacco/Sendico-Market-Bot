@@ -20,9 +20,9 @@ seller_verification:
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20
-  # Six listings means a maximum of about 12 Gemini requests per scheduled run
+  # Ten listings means a maximum of about 20 Gemini requests per scheduled run
   # when every listing requires both overview and crop passes.
-  max_listings_per_run: 6
+  max_listings_per_run: 10
   page_timeout_ms: 60000
   search_terms:
     - "ビクティニ AR まとめ売り"
@@ -33,7 +33,9 @@ sendico:
 vision:
   enabled: true
   model: "gemini-3.6-flash"
-  max_images_per_listing: 8
+  # Review several Sendico photos. Alternative views help verify card variants
+  # and condition without being counted as additional physical cards.
+  max_images_per_listing: 12
 
   # Price and include every Japanese card Gemini identifies at 95% or higher.
   minimum_card_confidence: 0.95
@@ -49,6 +51,7 @@ vision:
   crop_minimum_confidence: 0.40
   crop_padding_percent: 0.06
   crop_max_dimension_px: 1400
+  supporting_images_in_crop_pass: 6
 
 pricing:
   request_delay_seconds: 1.2

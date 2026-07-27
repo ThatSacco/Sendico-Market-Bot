@@ -29,6 +29,51 @@ GENERIC_SET_TOKENS = {
     "the",
 }
 
+VARIANT_QUERY_TERMS = {
+    "master_ball": "Master Ball",
+    "poke_ball": "Poke Ball",
+    "reverse_holo": "Reverse Holo",
+}
+
+
+def _normalize_variant(value: str | None) -> str:
+    text = re.sub(r"[^a-z0-9]+", "_", (value or "").lower()).strip("_")
+    aliases = {
+        "": "normal_holo",
+        "normal": "normal_holo",
+        "regular": "normal_holo",
+        "holo": "normal_holo",
+        "standard": "normal_holo",
+        "masterball": "master_ball",
+        "pokeball": "poke_ball",
+        "reverse": "reverse_holo",
+        "reverse_foil": "reverse_holo",
+    }
+    normalized = aliases.get(text, text)
+    return normalized if normalized in {
+        "normal_holo", "master_ball", "poke_ball", "reverse_holo", "other"
+    } else "normal_holo"
+
+
+def detected_variant(text: str) -> str:
+    haystack = text.lower().replace("poké", "poke")
+    if re.search(r"\bmaster[ -]?ball\b", haystack):
+        return "master_ball"
+    if re.search(r"\bpoke[ -]?ball\b|\bpokeball\b", haystack):
+        return "poke_ball"
+    if re.search(r"\breverse(?:[ -](?:holo|foil))?\b", haystack):
+        return "reverse_holo"
+    return "normal_holo"
+
+
+def variant_matches(card: IdentifiedCard, text: str) -> bool:
+    expected = _normalize_variant(card.variant)
+    actual = detected_variant(text)
+    if expected == "other":
+        # An unspecified premium/other variant is not safe to price automatically.
+        return False
+    return expected == actual
+
 
 def _word_tokens(value: str | None) -> list[str]:
     return [
@@ -87,7 +132,7 @@ def _set_similarity(card: IdentifiedCard, text: str) -> float:
 
 
 def identity_match_confidence(card: IdentifiedCard, text: str) -> float:
-    """Score a PriceCharting candidate using name, number and Japanese set.
+    """Score a PriceCharting candidate using name, number, set and finish variant.
 
     Weighting:
       - exact English name tokens: 40%
@@ -98,6 +143,9 @@ def identity_match_confidence(card: IdentifiedCard, text: str) -> float:
     set match. This is less brittle than a binary exact match while still
     rejecting similarly named cards from another number or unrelated set.
     """
+    if not variant_matches(card, text):
+        return 0.0
+
     haystack = text.lower()
     name_tokens = [
         token for token in re.findall(r"[a-z0-9]+", card.name_en.lower()) if token
@@ -237,12 +285,21 @@ class PriceChartingClient:
                     card.card_number,
                     card.set_name,
                     card.set_code,
+                    VARIANT_QUERY_TERMS.get(_normalize_variant(card.variant)),
                     "Pokemon Japanese",
                 ],
             )
         )
         fallback_query = " ".join(
-            filter(None, [card.name_en, card.card_number, "Pokemon Japanese"])
+            filter(
+                None,
+                [
+                    card.name_en,
+                    card.card_number,
+                    VARIANT_QUERY_TERMS.get(_normalize_variant(card.variant)),
+                    "Pokemon Japanese",
+                ],
+            )
         )
 
         for query in dict.fromkeys([full_query, fallback_query]):

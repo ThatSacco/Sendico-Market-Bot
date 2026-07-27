@@ -43,6 +43,7 @@ class IdentifiedCard:
     confidence: float
     evidence_image_indexes: list[int] = field(default_factory=list)
     condition: str = "unknown"
+    variant: str = "normal_holo"
     is_target: bool = False
 
     @property
@@ -53,6 +54,7 @@ class IdentifiedCard:
                 (self.set_code or self.set_name or "").lower().strip(),
                 self.card_number.lower().replace(" ", ""),
                 self.name_en.lower().strip(),
+                self.variant.lower().strip(),
             ]
         )
 

@@ -59,6 +59,29 @@ def _clamp_confidence(value: Any) -> float:
         return 0.0
 
 
+def _normalize_variant(value: Any) -> str:
+    """Return a stable pricing variant, defaulting conservatively to normal/holo."""
+    text = re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
+    aliases = {
+        "masterball": "master_ball",
+        "master_ball_reverse": "master_ball",
+        "pokeball": "poke_ball",
+        "poke_ball_reverse": "poke_ball",
+        "pok_ball": "poke_ball",
+        "reverse": "reverse_holo",
+        "reverse_foil": "reverse_holo",
+        "standard": "normal_holo",
+        "normal": "normal_holo",
+        "holo": "normal_holo",
+        "regular": "normal_holo",
+        "": "normal_holo",
+    }
+    normalized = aliases.get(text, text)
+    return normalized if normalized in {
+        "normal_holo", "poke_ball", "master_ball", "reverse_holo", "other"
+    } else "normal_holo"
+
+
 def parse_vision_result(payload: dict[str, Any], target: WatchCard) -> VisionResult:
     cards: list[IdentifiedCard] = []
     target_number = target.card_number.replace(" ", "").lower()
@@ -87,6 +110,7 @@ def parse_vision_result(payload: dict[str, Any], target: WatchCard) -> VisionRes
                 confidence=_clamp_confidence(raw.get("confidence")),
                 evidence_image_indexes=[int(v) for v in raw.get("evidence_image_indexes", [])],
                 condition=str(raw.get("condition") or "unknown"),
+                variant=_normalize_variant(raw.get("variant")),
                 is_target=is_target,
             )
         )
@@ -195,6 +219,7 @@ class LotVisionAnalyzer:
         crop_minimum_confidence: float = 0.40,
         crop_padding_percent: float = 0.06,
         crop_max_dimension_px: int = 1400,
+        supporting_images_in_crop_pass: int = 6,
     ) -> None:
         self.api_key = api_key
         self.model = model
@@ -207,6 +232,7 @@ class LotVisionAnalyzer:
         self.crop_minimum_confidence = crop_minimum_confidence
         self.crop_padding_percent = max(0.0, min(0.25, crop_padding_percent))
         self.crop_max_dimension_px = max(400, crop_max_dimension_px)
+        self.supporting_images_in_crop_pass = max(0, supporting_images_in_crop_pass)
         self.endpoint = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent"
@@ -243,7 +269,9 @@ class LotVisionAnalyzer:
             )
             return overview_result
 
-        crop_payload = self._crop_identification_pass(listing, target, crops)
+        crop_payload = self._crop_identification_pass(
+            listing, target, crops, downloaded
+        )
         crop_result = self._parse_crop_result(crop_payload, target, crops)
         # Pass 1 locates the physical cards only. Pass 2 is the sole identity source.
         merged_cards = _merge_cards(overview_result.cards, crop_result.cards)
@@ -265,6 +293,11 @@ class LotVisionAnalyzer:
             f"Two-pass Gemini analysis: {len(selected)} regions selected, "
             f"{len(crops)} enlarged crops sent in one second request, "
             f"{identified_crop_count} crops identified."
+        )
+        notes.append(
+            f"Gemini reviewed {len(downloaded)} Sendico listing photo(s); "
+            f"up to {min(len(downloaded), self.supporting_images_in_crop_pass)} "
+            "full-photo views were included in pass 2 to verify variants and condition."
         )
 
         return VisionResult(
@@ -302,10 +335,12 @@ LISTING TEXT:
 Tasks:
 1. Classify the listing as single, lot, collection, or unknown.
 2. Identify any Japanese raw Pokemon cards whose exact card number is already readable. Do not guess.
-3. Locate every distinct raw card visible in the best overview/group image. Return one bounding box per physical card. Prefer the image containing the most distinct cards and avoid duplicate regions from alternate views.
-4. Bounding boxes use normalized 0-1000 coordinates in this exact order: [y_min, x_min, y_max, x_max]. image_index is 1-based in the order supplied.
-5. Mark possible_target true only when the card artwork or visible text resembles {target.english_name}/{target.japanese_name}. This is only a locator hint, not final identification.
-6. Ignore slabs, sleeves without cards, boxes, accessories and non-Pokemon cards.
+3. Review all supplied listing photos. Alternate photos may be close-ups, backs, or foil-angle views of the same physical cards; use them as supporting evidence and never count them as extra copies.
+4. Locate every distinct raw card visible in the best overview/group image. Return one bounding box per physical card. Prefer the image containing the most distinct cards and avoid duplicate regions from alternate views.
+5. Bounding boxes use normalized 0-1000 coordinates in this exact order: [y_min, x_min, y_max, x_max]. image_index is 1-based in the order supplied.
+6. Mark possible_target true only when the card artwork or visible text resembles {target.english_name}/{target.japanese_name}. This is only a locator hint, not final identification.
+7. Ignore slabs, sleeves without cards, boxes, accessories and non-Pokemon cards.
+8. For variant, default to normal_holo. Only use poke_ball, master_ball, reverse_holo or other when a special foil/pattern is clearly proven by the photos or listing text. Standard set holofoil is normal_holo.
 
 Return JSON only:
 {{
@@ -324,7 +359,8 @@ Return JSON only:
       "quantity": 1,
       "confidence": 0.0,
       "evidence_image_indexes": [1],
-      "condition": "near_mint|lightly_played|moderately_played|heavily_played|damaged|unknown"
+      "condition": "near_mint|lightly_played|moderately_played|heavily_played|damaged|unknown",
+      "variant": "normal_holo|poke_ball|master_ball|reverse_holo|other"
     }}
   ],
   "crop_regions": [
@@ -350,6 +386,7 @@ Return JSON only:
         listing: SendicoListing,
         target: WatchCard,
         crops: list[CardCrop],
+        supporting_images: list[DownloadedImage],
     ) -> dict[str, Any]:
         prompt = f"""
 You are auditing enlarged crops from one Japanese Pokemon TCG Mercari listing. This is pass 2.
@@ -363,8 +400,18 @@ TARGET CARD:
 Each supplied crop is labelled with a crop_index. Usually each crop contains one physical card.
 Identify a card only when its exact printed card number is readable or the identity is otherwise unmistakable from the exact artwork and set context. Do not invent a number. Include Japanese raw Pokemon cards only. Return one entry for every confidently identified crop. If two crops show two physical copies of the same card, return both entries with quantity 1; the software will combine them. If a crop is unreadable, add its index to unrecognized_crop_indexes.
 
+VARIANT RULE — IMPORTANT:
+- Always default to variant normal_holo.
+- Standard holofoil and ordinary non-holo printings are normal_holo.
+- Only return poke_ball, master_ball, reverse_holo or other when a supporting photo or crop clearly proves that exact special pattern.
+- If the foil pattern is unclear, return normal_holo. Never infer a premium variant from a PriceCharting title.
+- Supporting listing photos may show alternate angles or close-ups of the same physical cards. Use them only to verify identity, variant and condition; do not count them as extra copies.
+
 LISTING TITLE:
 {listing.title}
+
+LISTING TEXT:
+{listing.description[:8000]}
 
 Return JSON only:
 {{
@@ -380,7 +427,8 @@ Return JSON only:
       "language": "Japanese",
       "quantity": 1,
       "confidence": 0.0,
-      "condition": "near_mint|lightly_played|moderately_played|heavily_played|damaged|unknown"
+      "condition": "near_mint|lightly_played|moderately_played|heavily_played|damaged|unknown",
+      "variant": "normal_holo|poke_ball|master_ball|reverse_holo|other"
     }}
   ],
   "unrecognized_crop_indexes": [],
@@ -398,6 +446,17 @@ Return JSON only:
                 }
             )
             parts.append(self._inline_part(crop.mime_type, crop.data))
+
+        for image in supporting_images[: self.supporting_images_in_crop_pass]:
+            parts.append(
+                {
+                    "text": (
+                        f"Supporting full listing image {image.image_index}. "
+                        "This may be another view of cards already shown; do not count copies from it."
+                    )
+                }
+            )
+            parts.append(self._inline_part(image.mime_type, image.data))
         return self._generate(parts)
 
     def _parse_crop_result(

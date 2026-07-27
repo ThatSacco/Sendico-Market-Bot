@@ -18,6 +18,16 @@ def signed_money(value: float) -> str:
     return f"{sign}A${abs(value):,.2f}"
 
 
+def _variant_label(variant: str) -> str:
+    return {
+        "normal_holo": "Normal/Holo",
+        "poke_ball": "Poké Ball",
+        "master_ball": "Master Ball",
+        "reverse_holo": "Reverse Holo",
+        "other": "Other variant",
+    }.get(variant, "Normal/Holo")
+
+
 def _variance_wording(assessment: DealAssessment) -> str:
     if assessment.price_variance_aud > 0:
         return (
@@ -51,8 +61,8 @@ def _priced_lines(assessment: DealAssessment, limit: int = 15) -> list[str]:
     )[:limit]:
         card = priced.card
         lines.append(
-            f"• {card.quantity}× **{card.name_en} {card.card_number}** — "
-            f"{money(priced.total_aud)} "
+            f"• {card.quantity}× **{card.name_en} {card.card_number} "
+            f"[{_variant_label(card.variant)}]** — {money(priced.total_aud)} "
             f"({priced.match_confidence:.0%} price match)"
         )
     if len(assessment.priced_cards) > limit:
@@ -149,10 +159,13 @@ def build_embed(assessment: DealAssessment) -> dict:
                 "value": (
                     "Verify the seller has at least 301 positive ratings before purchase. "
                     "Shipping, domestic freight, GST and condition adjustments are excluded. "
-                    "Verify card identity, authenticity and condition."
+                    "Premium variants are valued only when explicitly confirmed; otherwise "
+                    "Normal/Holo is assumed. Verify card identity, authenticity and condition."
                     if provisional
                     else "Shipping, domestic freight, GST and condition adjustments are "
-                    "excluded. Verify card identity, authenticity and condition."
+                    "excluded. Premium variants are valued only when explicitly confirmed; "
+                    "otherwise Normal/Holo is assumed. Verify card identity, authenticity "
+                    "and condition."
                 ),
                 "inline": False,
             },
@@ -217,8 +230,8 @@ def build_test_embed(assessment: DealAssessment) -> dict:
     identified_lines: list[str] = []
     for card in vision.cards[:15]:
         identified_lines.append(
-            f"• {card.quantity}× **{card.name_en} {card.card_number}** "
-            f"({card.confidence:.0%})"
+            f"• {card.quantity}× **{card.name_en} {card.card_number} "
+            f"[{_variant_label(card.variant)}]** ({card.confidence:.0%})"
         )
     if len(vision.cards) > 15:
         identified_lines.append(
