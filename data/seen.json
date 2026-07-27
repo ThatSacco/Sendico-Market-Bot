@@ -82,5 +82,47 @@
     "alerted_fingerprint": null,
     "last_outcome": "error: Client error '404 Not Found' for url 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6L2zxMXyBLQiOOhpYrfY5hveZNsDKUTQ4AH0XTSjiwAeQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
     "last_checked": "2026-07-27T03:51:41.282382+00:00"
+  },
+  "m10381389468": {
+    "url": "https://sendico.com/shop/mercari/catalog/m10381389468",
+    "fingerprint": "0a07020cd360fddcf17f03a2c7b428791ece63d450022d15999491750e93064d",
+    "alerted_fingerprint": null,
+    "last_outcome": "test mode analysed",
+    "last_checked": "2026-07-27T04:16:25.806154+00:00"
+  },
+  "m22704933522": {
+    "url": "https://sendico.com/shop/mercari/catalog/m22704933522",
+    "fingerprint": "e2b54adfb82292c90b1c828a30b5d90151a11e4fe632da82b603490196bca88d",
+    "alerted_fingerprint": null,
+    "last_outcome": "test mode analysed",
+    "last_checked": "2026-07-27T04:16:41.400414+00:00"
+  },
+  "m55515637157": {
+    "url": "https://sendico.com/shop/mercari/catalog/m55515637157",
+    "fingerprint": "b94445a09131e82c83ca46168b9960974f8092f261143d6421b2378b5c08170a",
+    "alerted_fingerprint": null,
+    "last_outcome": "test mode analysed",
+    "last_checked": "2026-07-27T04:16:53.442401+00:00"
+  },
+  "m20434814071": {
+    "url": "https://sendico.com/shop/mercari/catalog/m20434814071",
+    "fingerprint": "b28ec5d5bd97e3b1018582a2e8a1f8303e0e306b9b1f215fae26ee2bbec0ee36",
+    "alerted_fingerprint": null,
+    "last_outcome": "test mode analysed",
+    "last_checked": "2026-07-27T04:17:02.620884+00:00"
+  },
+  "m71087629561": {
+    "url": "https://sendico.com/shop/mercari/catalog/m71087629561",
+    "fingerprint": "c88fe3d4c79fcf23cf4fd11e7628d51a7ecfc3e418cfbe64cbdf7808418d9f94",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Gemini API returned HTTP 503: {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n",
+    "last_checked": "2026-07-27T04:17:22.157478+00:00"
+  },
+  "m23622488213": {
+    "url": "https://sendico.com/shop/mercari/catalog/m23622488213",
+    "fingerprint": "f4c3fd28c4cc7eee3c53769a085858a8805933326d9858f060d59e639c6eb2aa",
+    "alerted_fingerprint": null,
+    "last_outcome": "test mode analysed",
+    "last_checked": "2026-07-27T04:17:36.154002+00:00"
   }
 }
