@@ -156,11 +156,17 @@ def dedupe_crop_regions(regions: list[CropRegion], iou_threshold: float = 0.65) 
     return sorted(kept, key=lambda item: (item.image_index, item.box_2d[0], item.box_2d[1]))
 
 
-def _merge_cards(overview_cards: list[IdentifiedCard], crop_cards: list[IdentifiedCard]) -> list[IdentifiedCard]:
-    # Crop results are preferred because they come from enlarged card images.
-    # Multiple crop results with the same exact identity are separate physical cards,
-    # so their quantities are summed. Overview results are retained only when no crop
-    # result exists for the same exact card.
+def _merge_cards(
+    overview_cards: list[IdentifiedCard],
+    crop_cards: list[IdentifiedCard],
+) -> list[IdentifiedCard]:
+    """Return crop-only identities, combining true physical duplicates.
+
+    The overview pass is used only to locate card regions. Its card identities are
+    intentionally ignored once enlarged crop results exist, because overview guesses
+    can describe the same physical card with a different set or card number.
+    """
+    del overview_cards
     crop_by_key: dict[str, IdentifiedCard] = {}
     for card in crop_cards:
         existing = crop_by_key.get(card.key)
@@ -173,19 +179,7 @@ def _merge_cards(overview_cards: list[IdentifiedCard], crop_cards: list[Identifi
         existing.evidence_image_indexes = sorted(
             set(existing.evidence_image_indexes + card.evidence_image_indexes)
         )
-
-    merged = dict(crop_by_key)
-    for card in overview_cards:
-        existing = merged.get(card.key)
-        if existing is None:
-            merged[card.key] = card
-            continue
-        existing.confidence = max(existing.confidence, card.confidence)
-        existing.is_target = existing.is_target or card.is_target
-        existing.evidence_image_indexes = sorted(
-            set(existing.evidence_image_indexes + card.evidence_image_indexes)
-        )
-    return list(merged.values())
+    return list(crop_by_key.values())
 
 
 class LotVisionAnalyzer:
@@ -251,25 +245,22 @@ class LotVisionAnalyzer:
 
         crop_payload = self._crop_identification_pass(listing, target, crops)
         crop_result = self._parse_crop_result(crop_payload, target, crops)
+        # Pass 1 locates the physical cards only. Pass 2 is the sole identity source.
         merged_cards = _merge_cards(overview_result.cards, crop_result.cards)
         target_cards = [card for card in merged_cards if card.is_target]
         target_confidence = max(
             [card.confidence for card in target_cards] + [0.0]
         )
-        identified_crop_count = len(
-            {
-                crop_index
-                for raw in crop_payload.get("cards", [])
-                for crop_index in [raw.get("crop_index")]
-                if crop_index is not None
-            }
-        )
+        identified_crop_count = sum(card.quantity for card in merged_cards)
         unidentified = max(
-            overview_result.unidentified_card_count,
+            crop_result.unidentified_card_count,
             len(crops) - identified_crop_count,
         )
-        notes = list(overview_result.notes)
-        notes.extend(crop_result.notes)
+        notes = list(crop_result.notes)
+        notes.append(
+            "Overview-pass card identities were discarded; enlarged crops are the "
+            "only identities used for valuation."
+        )
         notes.append(
             f"Two-pass Gemini analysis: {len(selected)} regions selected, "
             f"{len(crops)} enlarged crops sent in one second request, "
@@ -416,24 +407,54 @@ Return JSON only:
         crops: list[CardCrop],
     ) -> VisionResult:
         source_by_crop = {crop.crop_index: crop.source_image_index for crop in crops}
-        normalized_cards: list[dict[str, Any]] = []
+
+        # Gemini occasionally returns more than one possible identity for one crop.
+        # Keep only the highest-confidence identity for each physical crop.
+        best_by_crop: dict[int, dict[str, Any]] = {}
+        duplicate_responses = 0
         for raw in payload.get("cards", []):
             item = dict(raw)
             try:
                 crop_index = int(item.get("crop_index") or 0)
             except (TypeError, ValueError):
-                crop_index = 0
-            source_index = source_by_crop.get(crop_index)
-            item["evidence_image_indexes"] = [source_index] if source_index else []
+                continue
+            if crop_index not in source_by_crop:
+                continue
+            existing = best_by_crop.get(crop_index)
+            if existing is not None:
+                duplicate_responses += 1
+            if existing is None or _clamp_confidence(item.get("confidence")) > _clamp_confidence(
+                existing.get("confidence")
+            ):
+                best_by_crop[crop_index] = item
+
+        normalized_cards: list[dict[str, Any]] = []
+        for crop_index, item in sorted(best_by_crop.items()):
+            source_index = source_by_crop[crop_index]
+            item["evidence_image_indexes"] = [source_index]
             item["quantity"] = 1
             normalized_cards.append(item)
+
+        unrecognized = {
+            int(value)
+            for value in payload.get("unrecognized_crop_indexes", [])
+            if str(value).isdigit() and int(value) in source_by_crop
+        }
+        unrecognized.update(set(source_by_crop) - set(best_by_crop))
+        notes = [str(note) for note in payload.get("notes", [])]
+        if duplicate_responses:
+            notes.append(
+                f"Discarded {duplicate_responses} duplicate crop identity response(s); "
+                "one identity is retained per physical crop."
+            )
+
         normalized = {
             "listing_type": "lot",
             "target_present": False,
             "target_confidence": 0.0,
             "cards": normalized_cards,
-            "unidentified_card_count": len(payload.get("unrecognized_crop_indexes", [])),
-            "notes": payload.get("notes", []),
+            "unidentified_card_count": len(unrecognized),
+            "notes": notes,
         }
         result = parse_vision_result(normalized, target)
         targets = [card for card in result.cards if card.is_target]

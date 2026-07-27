@@ -21,6 +21,71 @@ LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://www.pricecharting.com"
 
 
+GENERIC_SET_TOKENS = {
+    "pokemon",
+    "japanese",
+    "card",
+    "cards",
+    "tcg",
+    "set",
+    "series",
+    "the",
+}
+
+
+def _word_tokens(value: str | None) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", (value or "").lower())
+        if token and token not in GENERIC_SET_TOKENS
+    ]
+
+
+def _card_numerator(card_number: str) -> str:
+    return normalize_number(card_number.split("/", 1)[0])
+
+
+def _candidate_numbers(text: str) -> set[str]:
+    values = {
+        normalize_number(match)
+        for match in re.findall(r"#\s*0*([0-9]{1,3})(?=\D|$)", text, re.IGNORECASE)
+    }
+    values.update(
+        normalize_number(match)
+        for match in re.findall(r"/[^?#\s]+-0*([0-9]{1,3})(?:[/?#]|$)", text, re.IGNORECASE)
+    )
+    return {value for value in values if value}
+
+
+def _set_matches(card: IdentifiedCard, text: str) -> bool:
+    haystack = text.lower()
+    compact = re.sub(r"[^a-z0-9]", "", haystack)
+    set_code = re.sub(r"[^a-z0-9]", "", (card.set_code or "").lower())
+    if set_code and set_code in compact:
+        return True
+
+    tokens = _word_tokens(card.set_name)
+    if not tokens:
+        return False
+    matched = sum(token in haystack for token in tokens)
+    required = 1 if len(tokens) == 1 else max(2, (len(tokens) + 1) // 2)
+    return matched >= required
+
+
+def strict_identity_match(card: IdentifiedCard, text: str) -> bool:
+    """Require card name, exact printed numerator and matching Japanese set."""
+    haystack = text.lower()
+    name_tokens = [token for token in re.findall(r"[a-z0-9]+", card.name_en.lower()) if token]
+    if not name_tokens or not all(token in haystack for token in name_tokens):
+        return False
+
+    numbers = _candidate_numbers(text)
+    if _card_numerator(card.card_number) not in numbers:
+        return False
+
+    return _set_matches(card, text)
+
+
 def normalize_number(value: str) -> str:
     return value.lower().replace("#", "").replace(" ", "").lstrip("0")
 
@@ -96,9 +161,14 @@ class PriceChartingClient:
         if not data:
             return None
         usd, title = data
-        confidence = self._title_confidence(card, title)
-        if confidence < 0.58 and not direct_url:
-            LOGGER.warning("Rejected weak PriceCharting match for %s: %s", card.key, title)
+        match_text = f"{title} {url}"
+        confidence = self._title_confidence(card, match_text)
+        if not direct_url and confidence < 1.0:
+            LOGGER.warning(
+                "Rejected non-exact PriceCharting match for %s: %s",
+                card.key,
+                title,
+            )
             return None
         return CardPrice(
             card=card,
@@ -125,12 +195,16 @@ class PriceChartingClient:
         for link in soup.select('a[href*="/game/pokemon-japanese-"]'):
             href = urljoin(BASE_URL, link.get("href", ""))
             text = link.get_text(" ", strip=True)
-            score = self._candidate_score(card, text + " " + href)
+            match_text = text + " " + href
+            if not strict_identity_match(card, match_text):
+                continue
+            score = self._candidate_score(card, match_text)
             candidates.append((score, href))
         if not candidates:
+            LOGGER.info("No exact PriceCharting result for %s", card.key)
             return None
         candidates.sort(reverse=True)
-        return candidates[0][1] if candidates[0][0] >= 0.55 else None
+        return candidates[0][1]
 
     def _fetch_product(self, url: str) -> tuple[float, str] | None:
         cached = self.cache.get(url)
@@ -164,21 +238,7 @@ class PriceChartingClient:
 
     @staticmethod
     def _candidate_score(card: IdentifiedCard, text: str) -> float:
-        haystack = text.lower()
-        score = 0.0
-        name_tokens = [token for token in re.split(r"\W+", card.name_en.lower()) if token]
-        if name_tokens and all(token in haystack for token in name_tokens):
-            score += 0.35
-        numerator = normalize_number(card.card_number.split("/")[0])
-        if re.search(rf"(?:#|[-/])0*{re.escape(numerator)}(?:\D|$)", haystack) or f"-{numerator}" in haystack:
-            score += 0.35
-        if card.set_code and card.set_code.lower() in haystack:
-            score += 0.2
-        if card.set_name:
-            tokens = [t for t in re.split(r"\W+", card.set_name.lower()) if len(t) > 3 and t not in {"pokemon", "japanese"}]
-            if tokens and sum(t in haystack for t in tokens) >= max(1, len(tokens) // 2):
-                score += 0.2
-        return min(score, 1.0)
+        return 1.0 if strict_identity_match(card, text) else 0.0
 
     @classmethod
     def _title_confidence(cls, card: IdentifiedCard, title: str) -> float:

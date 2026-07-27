@@ -79,6 +79,15 @@ def build_embed(assessment: DealAssessment) -> dict:
                 "inline": True,
             },
             {
+                "name": "Lot value vs Sendico cost",
+                "value": (
+                    f"Identified value: **{money(assessment.total_identified_value_aud)}**\n"
+                    f"Sendico cost: **{money(assessment.acquisition_cost_aud)}** "
+                    "(listing + ¥800 fee)"
+                ),
+                "inline": False,
+            },
+            {
                 "name": "Apparent saving",
                 "value": money(assessment.saving_aud),
                 "inline": True,
@@ -157,13 +166,11 @@ def send_discord_test_start(
     LOGGER.info("Diagnostic startup message sent to Discord")
 
 
-def send_discord_test(
-    webhook_url: str,
-    listing: SendicoListing,
-    vision: VisionResult,
-    priced_cards: list[CardPrice],
-    username: str,
-) -> None:
+def build_test_embed(assessment: DealAssessment) -> dict:
+    listing = assessment.listing
+    vision = assessment.vision
+    priced_cards = assessment.priced_cards
+
     identified_lines = []
     for card in vision.cards[:15]:
         identified_lines.append(
@@ -210,7 +217,10 @@ def send_discord_test(
             },
             {
                 "name": "Mercari price",
-                "value": f"¥{listing.price_yen:,}",
+                "value": (
+                    f"¥{listing.price_yen:,} / "
+                    f"{money(assessment.listing_price_aud)}"
+                ),
                 "inline": True,
             },
             {"name": "Seller positives", "value": seller_value, "inline": True},
@@ -238,15 +248,25 @@ def send_discord_test(
                 "inline": True,
             },
             {
+                "name": "Lot value vs Sendico cost",
+                "value": (
+                    f"Total identified lot value: **"
+                    f"{money(assessment.total_identified_value_aud)}**\n"
+                    f"Sendico lot cost: **{money(assessment.acquisition_cost_aud)}** "
+                    f"(¥{listing.price_yen:,} + ¥800 fee)"
+                ),
+                "inline": False,
+            },
+            {
                 "name": "Cards identified by Gemini",
                 "value": "\n".join(identified_lines)[:1024]
                 or "No exact cards identified",
                 "inline": False,
             },
             {
-                "name": "Cards matched to prices",
+                "name": "Cards matched to exact prices",
                 "value": "\n".join(priced_lines)[:1024]
-                or "No cards successfully priced",
+                or "No cards successfully matched to an exact set/card number",
                 "inline": False,
             },
             {
@@ -260,9 +280,16 @@ def send_discord_test(
 
     if listing.image_urls:
         embed["thumbnail"] = {"url": listing.image_urls[0]}
+    return embed
 
-    _post_embed(webhook_url, username, embed)
-    LOGGER.info("Diagnostic Discord result sent for %s", listing.url)
+
+def send_discord_test(
+    webhook_url: str,
+    assessment: DealAssessment,
+    username: str,
+) -> None:
+    _post_embed(webhook_url, username, build_test_embed(assessment))
+    LOGGER.info("Diagnostic Discord result sent for %s", assessment.listing.url)
 
 
 def send_discord_test_error(

@@ -305,9 +305,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             await asyncio.to_thread(
                                 send_discord_test,
                                 config.discord_webhook_url,
-                                listing,
-                                vision_result,
-                                priced,
+                                assessment,
                                 str(
                                     config.raw["discord"].get(
                                         "username",

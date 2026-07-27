@@ -57,7 +57,7 @@ pricing:
   manual_jpy_to_aud: 0.0102
 
 sendico_fee:
-  before_2026_08_01_jpy: 500
+  before_2026_08_01_jpy: 800
   from_2026_08_01_jpy: 800
 
 discord:
