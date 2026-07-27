@@ -1,2 +1,1 @@
-# Optional manual prices. Leave empty unless PriceCharting cannot match a card.
-# key,name,set_code,card_number,price_aud
+key,name,set_code,card_number,price_aud

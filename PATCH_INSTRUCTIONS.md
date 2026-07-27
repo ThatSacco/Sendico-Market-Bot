@@ -1,84 +1,40 @@
-# Quantity and graded-slab correction
+# Audited repository update
 
-Upload the contents of this folder to the root of the GitHub repository and replace matching files.
+This package is a complete replacement based on the latest Groq, multi-watchlist,
+PriceCharting-reference, alternate-photo quantity, and graded-slab version.
 
-## What this update fixes
+## Critical correction
 
-- Alternate photos of the same physical card no longer multiply the quantity.
-- Quantity is based on the greatest number of identical cards visible together in one source photo.
-- Card backs and unreadable slab backs are explicitly excluded from Groq identification.
-- Professionally graded cards now retain their grading company and grade.
-- Explicit title claims such as `PSA10` are used as a fallback when the card identity matches but the cropped image misses the slab label.
-- Title-derived grades are marked `claimed` in Discord and require manual verification.
-- PriceCharting now uses the matching guide tier instead of always using Ungraded.
-- A PSA 10 card uses the `PSA 10` value; Grade 7, 8, 9 and 9.5 use their corresponding guide values.
-- Another company's grade 10 is not automatically valued as PSA 10.
-- Front, back and close-up views of one slab are merged into one physical card.
+The public repository's scanner workflow was still configured for the old frequent
+schedule and supplied `OPENAI_API_KEY`. The current Python code requires
+`GROQ_API_KEY`. This package restores the intended workflow:
 
-## Existing features retained
+- Thursday at 12:00 AM in `Australia/Sydney`
+- daylight-saving aware UTC triggers
+- `GROQ_API_KEY`
+- current GitHub Actions major versions
+- 180-minute scanner timeout
 
-- Multiple exact-card and general-Pokemon watchlist entries.
-- Optional `pricecharting_url` for exact-card entries.
-- 95% PriceCharting identity matching and safe fallback search.
-- Three total attempts for retryable listing failures.
-- `data/seen.json` listing deduplication.
-- Thursday midnight Sydney schedule with daylight-saving handling.
-- Groq request-size and rate-limit protection.
+## Additional safeguards
 
-## Important files
-
-This is a complete replacement package. Upload all included files. The main changes are in:
-
-```text
-src/pokemon_deal_bot/models.py
-src/pokemon_deal_bot/vision.py
-src/pokemon_deal_bot/pricecharting.py
-src/pokemon_deal_bot/discord.py
-tests/test_grading.py
-```
-
-## Preserve your data
-
-Do not delete your existing:
-
-```text
-data/seen.json
-data/price_cache.json
-reports/
-```
-
-The previous one-price cache format is migrated automatically. When a graded tier is required, the bot refreshes the relevant PriceCharting page and stores all available guide tiers.
+- Adds `.github/workflows/tests.yml` to compile and test the project on every push
+  and pull request.
+- Restores the full regression test suite.
+- Repairs `data/price_overrides.csv` so it is valid CSV.
+- Adds repository-integrity tests that detect a future workflow regression.
 
 ## Upload process
 
 1. Extract this ZIP.
-2. Upload all extracted contents to the repository root.
-3. Allow GitHub to replace matching files.
-4. Preserve `data/seen.json`, `data/price_cache.json`, and `reports/`.
-5. Commit to `main`.
-6. Open **Actions** and run the scanner manually once.
+2. Upload every extracted file and folder to the repository root.
+3. Replace matching files.
+4. Preserve the existing `data/seen.json`, `data/price_cache.json`, and `reports/`
+   files; they are not included here.
+5. Commit the upload to `main`.
+6. Confirm the new **Test Sendico Market Bot** workflow passes.
+7. Confirm repository secrets include `GROQ_API_KEY` and `DISCORD_WEBHOOK_URL`.
+8. Run **Scan Sendico Pokemon Deals** manually once.
 
-## Retest the PSA 10 listing
+## Expected validation
 
-A successfully processed listing is normally skipped. To retest this listing without deleting scan history, temporarily set:
-
-```yaml
-test_mode:
-  enabled: true
-  max_alerts_per_run: 1
-  ignore_seen_state: true
-  skip_search_when_direct_urls: true
-  direct_listing_urls:
-    - "https://sendico.com/shop/mercari/catalog/m24075102942"
-```
-
-The corrected result should show one Ampharos card and a `PSA 10` PriceCharting tier. When the grade came from the title fallback, Discord will display `PSA 10 claimed`.
-
-After the test, restore:
-
-```yaml
-test_mode:
-  enabled: false
-  ignore_seen_state: false
-  direct_listing_urls: []
-```
+The local package passes source compilation and the full automated test suite.

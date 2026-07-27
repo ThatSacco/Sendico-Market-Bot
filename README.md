@@ -1,6 +1,6 @@
 # Sendico Japanese Pokemon Deal Bot
 
-This bot searches Sendico's Mercari Pokemon listings, identifies Japanese raw or professionally graded cards, checks the matching PriceCharting condition/grade value, and posts qualifying watchlist matches to Discord.
+This bot searches Sendico's Mercari Pokemon listings, identifies Japanese raw cards, checks PriceCharting values, and posts qualifying watchlist matches to Discord.
 
 ## Watchlist modes
 
@@ -112,18 +112,6 @@ Target names and watchlist details are not included in the Groq prompt. Groq ide
 
 Sendico sellers often photograph one physical card several times. The scanner now determines quantity from the greatest number of identical cards visible together in any single source photo rather than summing the same card across alternate photos. For example, five photos of one Ampharos are valued as `1x`; two identical Ampharos visible together in one overview photo are valued as `2x`, even when extra close-ups are also supplied.
 
-### Graded slabs
-
-Groq is now asked to read the grading company and grade when the slab label is visible. The scanner also recognises explicit title claims such as `PSA10` as a fallback when local cropping isolates the card but misses the top of the slab. Title-derived grading is labelled **claimed** in Discord and must be checked manually against the slab and certification number.
-
-Pricing follows the identified condition instead of always using the raw value:
-
-- raw card -> PriceCharting `Ungraded`;
-- PSA 10 -> PriceCharting `PSA 10`;
-- grades 7, 8, 9 and 9.5 -> the corresponding PriceCharting grade column.
-
-The program does not substitute a PSA 10 value for another company's grade 10. Unsupported company/grade combinations are left unpriced rather than being overvalued as raw or PSA 10. Front, back and close-up photos of the same slab are merged into one physical card.
-
 ## TPM protection
 
 The default configuration is conservative for a limited Groq token-per-minute allowance:
@@ -149,7 +137,7 @@ The scanner stores listing state in `data/seen.json`.
 
 ## Discord alerts
 
-Alerts include a **Matched watchlist** field containing the IDs of the exact/general rules that matched the listing. Each priced line also shows whether the value used was Ungraded, Grade 9, PSA 10, or another supported PriceCharting tier. A grade taken only from the listing title is marked `claimed`.
+Alerts now include a **Matched watchlist** field containing the IDs of the exact/general rules that matched the listing.
 
 ## Required GitHub secrets
 
@@ -176,3 +164,15 @@ GitHub Actions installs all dependencies from `requirements.txt`, including:
 numpy
 opencv-python-headless
 ```
+
+## Repository validation
+
+The repository includes two workflows:
+
+- `Test Sendico Market Bot` runs source compilation and the full test suite on every
+  push and pull request.
+- `Scan Sendico Pokemon Deals` performs the scheduled/manual live scan and supplies
+  `GROQ_API_KEY` and `DISCORD_WEBHOOK_URL` only to the scanner step.
+
+A small repository-integrity test also checks that the live workflow remains on the
+weekly Sydney schedule and does not regress to the former OpenAI environment key.
