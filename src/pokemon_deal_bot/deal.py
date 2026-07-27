@@ -24,6 +24,7 @@ def assess_deal(
     minimum_target_confidence: float,
 ) -> DealAssessment:
     reasons: list[str] = []
+    non_seller_reasons: list[str] = []
     fee_jpy = sendico_fee_jpy(fee_config)
     listing_price_aud = listing.price_yen * fx.jpy_to_aud
     fee_aud = fee_jpy * fx.jpy_to_aud
@@ -32,24 +33,34 @@ def assess_deal(
     saving = value - acquisition
     saving_percent = (saving / value * 100.0) if value > 0 else -100.0
 
-    if listing.seller_positive_ratings is None:
+    seller_unverified = listing.seller_positive_ratings is None
+    if seller_unverified:
         reasons.append("seller positive rating could not be verified")
     elif listing.seller_positive_ratings < minimum_seller_ratings:
         reasons.append(
             f"seller has {listing.seller_positive_ratings} positive ratings; minimum is {minimum_seller_ratings}"
         )
+
     if not vision.target_present:
-        reasons.append("target card was not confirmed")
+        non_seller_reasons.append("target card was not confirmed")
     if vision.target_confidence < minimum_target_confidence:
-        reasons.append("target-card confidence is below threshold")
+        non_seller_reasons.append("target-card confidence is below threshold")
     if not any(item.card.is_target for item in priced_cards):
-        reasons.append("target card could not be priced")
+        non_seller_reasons.append("target card could not be priced")
     if value <= 0:
-        reasons.append("no cards were priced")
+        non_seller_reasons.append("no cards were priced")
     if saving_percent < minimum_saving_percent:
-        reasons.append(
+        non_seller_reasons.append(
             f"saving is {saving_percent:.1f}%; minimum is {minimum_saving_percent:.1f}%"
         )
+    reasons.extend(non_seller_reasons)
+
+    seller_verified_and_eligible = (
+        listing.seller_positive_ratings is not None
+        and listing.seller_positive_ratings >= minimum_seller_ratings
+    )
+    qualifies = seller_verified_and_eligible and not non_seller_reasons
+    provisional_qualifies = seller_unverified and not non_seller_reasons
 
     return DealAssessment(
         listing=listing,
@@ -61,6 +72,8 @@ def assess_deal(
         total_identified_value_aud=value,
         saving_aud=saving,
         saving_percent=saving_percent,
-        qualifies=not reasons,
+        qualifies=qualifies,
+        provisional_qualifies=provisional_qualifies,
+        requires_manual_seller_verification=seller_unverified,
         rejection_reasons=reasons,
     )

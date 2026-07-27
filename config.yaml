@@ -4,6 +4,13 @@ minimum_seller_positive_ratings: 301
 minimum_saving_percent: 20.0
 shipping_allowance_aud: 0.0
 
+seller_verification:
+  # Temporary test mode: analyse listings even when Sendico does not expose
+  # the seller rating. These can only become provisional alerts and must be
+  # checked manually before purchase. Verified sellers below 301 are rejected.
+  analyse_unverified_sellers: true
+  alert_provisional_deals: true
+
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20

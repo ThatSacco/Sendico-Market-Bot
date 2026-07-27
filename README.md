@@ -112,3 +112,23 @@ The Discord alert lists up to the 15 highest-value identified card entries and r
 ## If Sendico search stops working
 
 The browser adapter is in `src/pokemon_deal_bot/sendico.py`. It intentionally uses generic selectors rather than Sendico's old signed API. If the search box or product-card structure changes, adjust `_submit_search` or the product anchor selector.
+
+## Temporary seller-verification test mode
+
+Sendico currently does not expose the Mercari seller's positive-rating count in the page text available to the scanner. The bot therefore supports a temporary provisional mode configured in `config.yaml`:
+
+```yaml
+seller_verification:
+  analyse_unverified_sellers: true
+  alert_provisional_deals: true
+```
+
+In this mode:
+
+- A seller with a verified rating below 301 is still rejected immediately.
+- A listing with an unavailable seller rating can proceed through image analysis and lot valuation.
+- It can never be marked as a fully qualified deal.
+- If every other rule passes, Discord receives an amber **MANUAL SELLER CHECK** alert.
+- The alert instructs you to confirm at least 301 positive ratings before purchase.
+
+Set both options to `false` once reliable seller-rating extraction is implemented.

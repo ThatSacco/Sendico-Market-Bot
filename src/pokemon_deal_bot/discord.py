@@ -28,27 +28,43 @@ def build_embed(assessment: DealAssessment) -> dict:
         f"{len(assessment.priced_cards)} priced card entries; "
         f"{vision.unidentified_card_count} visible cards unpriced"
     )
+
+    provisional = assessment.provisional_qualifies and not assessment.qualifies
+    if provisional:
+        title = f"MANUAL SELLER CHECK — {assessment.saving_percent:.1f}% below identified value"
+        color = 0xF1C40F
+        status = "Provisional deal — seller rating must be verified manually"
+        seller_value = "Unverified — confirm at least 301 positive ratings before buying"
+    else:
+        title = f"{assessment.saving_percent:.1f}% below identified value — Victini lot"
+        color = 0x2ECC71
+        status = "Qualified deal"
+        seller_value = str(listing.seller_positive_ratings or "Unverified")
+
     return {
-        "title": f"{assessment.saving_percent:.1f}% below identified value — Victini lot",
+        "title": title,
         "url": listing.url,
         "description": listing.title[:4000],
-        "color": 0x2ECC71,
+        "color": color,
         "fields": [
+            {"name": "Status", "value": status, "inline": False},
             {"name": "Mercari price", "value": money(assessment.listing_price_aud), "inline": True},
             {"name": "Sendico fee", "value": money(assessment.sendico_fee_aud), "inline": True},
             {"name": "Cost used", "value": money(assessment.acquisition_cost_aud), "inline": True},
             {"name": "Identified lot value", "value": money(assessment.total_identified_value_aud), "inline": True},
             {"name": "Apparent saving", "value": money(assessment.saving_aud), "inline": True},
-            {
-                "name": "Seller positives",
-                "value": str(listing.seller_positive_ratings or "Unverified"),
-                "inline": True,
-            },
+            {"name": "Seller positives", "value": seller_value, "inline": True},
             {"name": "Cards valued", "value": "\n".join(priced_lines)[:1024] or "None", "inline": False},
             {"name": "Coverage", "value": coverage, "inline": False},
             {
                 "name": "Important",
-                "value": "Shipping, domestic freight, GST and condition discounts are excluded. Verify card identity and condition before purchase.",
+                "value": (
+                    "Verify the seller has at least 301 positive ratings before purchase. "
+                    "Shipping, domestic freight, GST and condition discounts are excluded. "
+                    "Verify card identity, authenticity and condition."
+                    if provisional
+                    else "Shipping, domestic freight, GST and condition discounts are excluded. Verify card identity and condition before purchase."
+                ),
                 "inline": False,
             },
         ],

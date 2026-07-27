@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import json
-from dataclasses import asdict
 from pathlib import Path
 
 from .models import DealAssessment
@@ -17,6 +16,8 @@ def write_reports(root: Path, assessments: list[DealAssessment]) -> None:
     )
     fields = [
         "qualifies",
+        "provisional_qualifies",
+        "requires_manual_seller_verification",
         "title",
         "url",
         "price_yen",
@@ -38,6 +39,8 @@ def write_reports(root: Path, assessments: list[DealAssessment]) -> None:
             writer.writerow(
                 {
                     "qualifies": item.qualifies,
+                    "provisional_qualifies": item.provisional_qualifies,
+                    "requires_manual_seller_verification": item.requires_manual_seller_verification,
                     "title": item.listing.title,
                     "url": item.listing.url,
                     "price_yen": item.listing.price_yen,

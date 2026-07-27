@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -93,6 +93,8 @@ class DealAssessment:
     saving_aud: float
     saving_percent: float
     qualifies: bool
+    provisional_qualifies: bool = False
+    requires_manual_seller_verification: bool = False
     rejection_reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

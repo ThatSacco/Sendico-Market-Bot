@@ -34,8 +34,14 @@ class StateStore:
         if record.get("fingerprint") != self.fingerprint(listing):
             return False
         outcome = str(record.get("last_outcome", ""))
-        # Retry transient failures and rating extraction failures on every scan.
-        return not (outcome.startswith("error:") or outcome == "seller rating unverified")
+        alerted = record.get("alerted_fingerprint") == self.fingerprint(listing)
+        # Retry transient failures, old rating-only rejections, and qualifying
+        # results that could not yet be sent to Discord.
+        if outcome.startswith("error:") or outcome == "seller rating unverified":
+            return False
+        if (outcome == "qualifies" or outcome.startswith("provisional deal")) and not alerted:
+            return False
+        return True
 
     def was_alerted(self, listing: SendicoListing) -> bool:
         record = self.data.get(listing.code, {})
