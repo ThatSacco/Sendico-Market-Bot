@@ -1,23 +1,41 @@
-# Provisional seller-rating patch
+# Gemini Test Mode Patch
 
-This patch lets listings continue through image analysis and pricing when Sendico does not expose the seller rating.
+This patch temporarily removes the normal deal restrictions so the full pipeline can be tested.
 
-## Safety behaviour
+## What it does
 
-- Verified seller rating below 301: rejected.
-- Verified seller rating of 301 or more: can become a normal green deal alert.
-- Unavailable seller rating: can only become an amber `MANUAL SELLER CHECK` alert.
-- The 20% saving, Victini target confirmation and all card-pricing rules still apply.
+- Uses `GEMINI_API_KEY` instead of `OPENAI_API_KEY`.
+- Uses `gemini-2.5-flash` for listing-image analysis.
+- Sends a **TEST MODE STARTED** Discord message as soon as the workflow reaches Discord.
+- Processes up to three Sendico listings.
+- Ignores seller rating, Victini detection, saving percentage, and previous scan history for diagnostic alerts.
+- Sends a blue Discord result after a listing reaches the analysis stage.
+- Sends a red Discord error message when a listing fails after being found.
+- Keeps the production filters intact for when test mode is disabled.
 
-## Upload through GitHub
+## Upload
 
-1. Extract this ZIP on your computer.
-2. Open `https://github.com/ThatSacco/Sendico-Market-Bot`.
-3. Select **Add file > Upload files**.
-4. Drag all extracted patch contents into the upload area. Keep the folder structure intact and allow the existing files to be replaced.
-5. Commit directly to `main` with a message such as `Allow provisional seller verification alerts`.
-6. Open **Actions > Scan Sendico Pokemon Deals > Run workflow**.
+1. Extract the ZIP.
+2. Open the extracted folder.
+3. Upload the contents to the root of the GitHub repository.
+4. Confirm the files replace existing files in `.github/workflows`, `src/pokemon_deal_bot`, and the repository root.
+5. Commit directly to `main`.
+6. Confirm the GitHub Actions repository secret is named exactly `GEMINI_API_KEY`.
+7. Run the workflow manually.
 
-Do not upload the ZIP itself. Upload the extracted files and folders.
+## Expected Discord messages
 
-The workflow file is included at `.github/workflows/scan.yml` and also updates the official GitHub actions to Node 24-compatible major versions.
+- `TEST MODE STARTED`: GitHub Actions and the Discord webhook are working.
+- `TEST MODE - Listing analysed`: Sendico, Gemini, pricing and Discord reached the result stage.
+- `TEST MODE - Listing processing error`: Sendico found a listing, but a later component failed. The error is included in the message.
+
+## Disable after testing
+
+Change this in `config.yaml`:
+
+```yaml
+test_mode:
+  enabled: false
+```
+
+Also change `sendico.max_listings_per_run` back to `12` when returning to normal operation.

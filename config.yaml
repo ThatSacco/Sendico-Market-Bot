@@ -4,17 +4,23 @@ minimum_seller_positive_ratings: 301
 minimum_saving_percent: 20.0
 shipping_allowance_aud: 0.0
 
+test_mode:
+  # TEMPORARY DIAGNOSTIC MODE.
+  # Sends a Discord result for up to three listings even if Victini is absent,
+  # the seller rating is unavailable, or the saving is below 20%.
+  enabled: true
+  max_alerts_per_run: 3
+  ignore_seen_state: true
+
 seller_verification:
-  # Temporary test mode: analyse listings even when Sendico does not expose
-  # the seller rating. These can only become provisional alerts and must be
-  # checked manually before purchase. Verified sellers below 301 are rejected.
+  # Production behaviour once test_mode is disabled.
   analyse_unverified_sellers: true
   alert_provisional_deals: true
 
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
   max_results_per_search: 20
-  max_listings_per_run: 12
+  max_listings_per_run: 3
   page_timeout_ms: 60000
   search_terms:
     - "ビクティニ 097/086"
@@ -24,7 +30,7 @@ sendico:
 
 vision:
   enabled: true
-  model: "gemini-1.5-flash"
+  model: "gemini-2.5-flash"
   max_images_per_listing: 8
   minimum_card_confidence: 0.78
   minimum_target_confidence: 0.85

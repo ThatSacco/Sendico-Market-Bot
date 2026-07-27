@@ -6,7 +6,12 @@ import logging
 
 from .config import load_config, load_watchlist
 from .deal import assess_deal
-from .discord import send_discord
+from .discord import (
+    send_discord,
+    send_discord_test,
+    send_discord_test_error,
+    send_discord_test_start,
+)
 from .fx import FxClient
 from .models import DealAssessment
 from .pricecharting import PriceChartingClient
@@ -24,15 +29,39 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     if len(targets) != 1:
         raise RuntimeError("This MVP expects exactly one active watchlist card")
     target = targets[0]
+
     vision_cfg = config.raw["vision"]
     if vision_cfg.get("enabled", True) and not config.gemini_api_key:
         raise RuntimeError(
-            "GEMINI_API_KEY is required to identify and value all cards in lot images"
+            "GEMINI_API_KEY is required to identify cards in lot images"
         )
 
     seller_cfg = config.raw.get("seller_verification", {})
     analyse_unverified = bool(seller_cfg.get("analyse_unverified_sellers", True))
     alert_provisional = bool(seller_cfg.get("alert_provisional_deals", True))
+
+    test_cfg = config.raw.get("test_mode", {})
+    test_mode = bool(test_cfg.get("enabled", False))
+    test_alert_limit = int(test_cfg.get("max_alerts_per_run", 3))
+    ignore_seen_state = bool(test_cfg.get("ignore_seen_state", True))
+    test_alerts_sent = 0
+
+    if test_mode:
+        LOGGER.warning(
+            "TEST MODE ENABLED: seller, target and saving restrictions will not "
+            "prevent diagnostic Discord alerts"
+        )
+        if not dry_run and config.discord_webhook_url:
+            try:
+                await asyncio.to_thread(
+                    send_discord_test_start,
+                    config.discord_webhook_url,
+                    str(config.raw["discord"].get("username", "Pokemon Deal Scout")),
+                    str(vision_cfg["model"]),
+                    test_alert_limit,
+                )
+            except Exception:
+                LOGGER.exception("Could not send test-mode startup message to Discord")
 
     fx_cfg = config.raw["pricing"]
     fx = FxClient(
@@ -45,6 +74,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         fx.jpy_to_aud,
         fx.source,
     )
+
     price_client = PriceChartingClient(
         root=config.root,
         fx=fx,
@@ -59,55 +89,100 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     state = StateStore(config.path("data/seen.json"))
     candidates = {}
     assessments: list[DealAssessment] = []
+
     try:
         async with SendicoMercariScanner(config.raw["sendico"]) as scanner:
             for term in config.raw["sendico"]["search_terms"]:
                 LOGGER.info("Searching Sendico Mercari: %s", term)
                 for listing in await scanner.search(term):
                     candidates[listing.code] = listing
+
             limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
             for listing in list(candidates.values())[:limit]:
                 try:
                     listing = await scanner.hydrate(listing)
-                    if state.unchanged(listing):
+
+                    if state.unchanged(listing) and not (
+                        test_mode and ignore_seen_state
+                    ):
                         LOGGER.info("Skipping unchanged listing %s", listing.code)
                         continue
 
-                    if listing.seller_positive_ratings is None and not analyse_unverified:
-                        LOGGER.info("Rejecting %s: seller rating unverified", listing.code)
-                        state.update(listing, False, "seller rating unverified")
-                        continue
-                    if listing.seller_positive_ratings is None:
+                    if test_mode:
                         LOGGER.warning(
-                            "Continuing %s in provisional test mode: seller rating requires manual verification",
+                            "TEST MODE: bypassing seller-rating filter for %s",
                             listing.code,
                         )
-                    elif listing.seller_positive_ratings < config.minimum_seller_positive_ratings:
-                        outcome = f"seller rating {listing.seller_positive_ratings} below threshold"
-                        LOGGER.info("Rejecting %s: %s", listing.code, outcome)
-                        state.update(listing, False, outcome)
-                        continue
+                    else:
+                        if (
+                            listing.seller_positive_ratings is None
+                            and not analyse_unverified
+                        ):
+                            LOGGER.info(
+                                "Rejecting %s: seller rating unverified",
+                                listing.code,
+                            )
+                            state.update(
+                                listing,
+                                False,
+                                "seller rating unverified",
+                            )
+                            continue
 
-                    vision_result = await asyncio.to_thread(vision.analyze, listing, target)
+                        if listing.seller_positive_ratings is None:
+                            LOGGER.warning(
+                                "Continuing %s provisionally: seller rating requires "
+                                "manual verification",
+                                listing.code,
+                            )
+                        elif (
+                            listing.seller_positive_ratings
+                            < config.minimum_seller_positive_ratings
+                        ):
+                            outcome = (
+                                f"seller rating {listing.seller_positive_ratings} "
+                                "below threshold"
+                            )
+                            LOGGER.info("Rejecting %s: %s", listing.code, outcome)
+                            state.update(listing, False, outcome)
+                            continue
+
+                    vision_result = await asyncio.to_thread(
+                        vision.analyze,
+                        listing,
+                        target,
+                    )
+
                     raw_eligible = [
                         card
                         for card in vision_result.cards
                         if card.language.lower() == "japanese"
-                        and card.confidence >= float(vision_cfg["minimum_card_confidence"])
+                        and card.confidence
+                        >= float(vision_cfg["minimum_card_confidence"])
                     ]
+
                     # The same physical cards may appear in multiple listing photos.
-                    # Keep the highest reported quantity per exact card instead of summing images.
+                    # Keep the highest reported quantity per exact card instead of
+                    # summing duplicate appearances across images.
                     by_key = {}
                     for card in raw_eligible:
                         existing = by_key.get(card.key)
                         if existing is None or card.quantity > existing.quantity:
                             by_key[card.key] = card
-                    eligible_cards = list(by_key.values())[: int(vision_cfg["maximum_cards_to_price"])]
+
+                    eligible_cards = list(by_key.values())[
+                        : int(vision_cfg["maximum_cards_to_price"])
+                    ]
                     priced = []
                     for card in eligible_cards:
-                        result = await asyncio.to_thread(price_client.price_card, card, target)
+                        result = await asyncio.to_thread(
+                            price_client.price_card,
+                            card,
+                            target,
+                        )
                         if result:
                             priced.append(result)
+
                     assessment = assess_deal(
                         listing=listing,
                         vision=vision_result,
@@ -116,54 +191,141 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         fee_config=config.raw["sendico_fee"],
                         minimum_saving_percent=config.minimum_saving_percent,
                         minimum_seller_ratings=config.minimum_seller_positive_ratings,
-                        minimum_target_confidence=float(vision_cfg["minimum_target_confidence"]),
+                        minimum_target_confidence=float(
+                            vision_cfg["minimum_target_confidence"]
+                        ),
                     )
                     assessments.append(assessment)
+
+                    if test_mode:
+                        if test_alerts_sent >= test_alert_limit:
+                            LOGGER.info(
+                                "Test alert limit reached; not sending %s",
+                                listing.code,
+                            )
+                        elif dry_run:
+                            LOGGER.info(
+                                "DRY RUN diagnostic result: %s",
+                                listing.url,
+                            )
+                        elif not config.discord_webhook_url:
+                            LOGGER.warning(
+                                "Test result created but DISCORD_WEBHOOK_URL is unset"
+                            )
+                        else:
+                            await asyncio.to_thread(
+                                send_discord_test,
+                                config.discord_webhook_url,
+                                listing,
+                                vision_result,
+                                priced,
+                                str(
+                                    config.raw["discord"].get(
+                                        "username",
+                                        "Pokemon Deal Scout",
+                                    )
+                                ),
+                            )
+                            test_alerts_sent += 1
+
+                        state.update(listing, False, "test mode analysed")
+                        continue
 
                     alert_eligible = assessment.qualifies or (
                         assessment.provisional_qualifies and alert_provisional
                     )
                     alerted = False
                     if alert_eligible and not state.was_alerted(listing):
-                        alert_kind = "qualifying" if assessment.qualifies else "provisional"
+                        alert_kind = (
+                            "qualifying" if assessment.qualifies else "provisional"
+                        )
                         if dry_run or not config.raw["discord"].get("enabled", True):
-                            LOGGER.info("DRY RUN %s deal: %s", alert_kind, listing.url)
+                            LOGGER.info(
+                                "DRY RUN %s deal: %s",
+                                alert_kind,
+                                listing.url,
+                            )
                         elif not config.discord_webhook_url:
-                            LOGGER.warning("%s deal found but DISCORD_WEBHOOK_URL is unset", alert_kind)
+                            LOGGER.warning(
+                                "%s deal found but DISCORD_WEBHOOK_URL is unset",
+                                alert_kind,
+                            )
                         else:
                             await asyncio.to_thread(
                                 send_discord,
                                 config.discord_webhook_url,
                                 assessment,
-                                str(config.raw["discord"].get("username", "Pokemon Deal Scout")),
+                                str(
+                                    config.raw["discord"].get(
+                                        "username",
+                                        "Pokemon Deal Scout",
+                                    )
+                                ),
                             )
                             alerted = True
 
                     if assessment.qualifies:
                         outcome = "qualifies"
                     elif assessment.provisional_qualifies:
-                        outcome = "provisional deal; seller rating requires manual verification"
+                        outcome = (
+                            "provisional deal; seller rating requires manual verification"
+                        )
                     else:
                         outcome = "; ".join(assessment.rejection_reasons)
                     state.update(listing, alerted, outcome)
-                except Exception as exc:  # noqa: BLE001 - continue scanning other listings
-                    LOGGER.exception("Listing processing failed for %s: %s", listing.url, exc)
+
+                except Exception as exc:  # noqa: BLE001 - continue other listings
+                    LOGGER.exception(
+                        "Listing processing failed for %s: %s",
+                        listing.url,
+                        exc,
+                    )
+
+                    if (
+                        test_mode
+                        and config.discord_webhook_url
+                        and test_alerts_sent < test_alert_limit
+                    ):
+                        try:
+                            await asyncio.to_thread(
+                                send_discord_test_error,
+                                config.discord_webhook_url,
+                                listing,
+                                str(exc),
+                                str(
+                                    config.raw["discord"].get(
+                                        "username",
+                                        "Pokemon Deal Scout",
+                                    )
+                                ),
+                            )
+                            test_alerts_sent += 1
+                        except Exception:
+                            LOGGER.exception(
+                                "Could not send diagnostic error to Discord"
+                            )
+
                     state.update(listing, False, f"error: {exc}")
     finally:
         price_client.close()
         state.save()
         write_reports(config.root, assessments)
+
     LOGGER.info(
-        "Completed: %d assessments, %d strict qualifying, %d provisional",
+        "Completed: %d assessments, %d strict qualifying, %d provisional, "
+        "%d test alerts",
         len(assessments),
         sum(a.qualifies for a in assessments),
         sum(a.provisional_qualifies for a in assessments),
+        test_alerts_sent,
     )
     return 0
 
 
 def cli() -> None:
-    parser = argparse.ArgumentParser(description="Sendico Mercari Japanese Pokemon deal scanner")
+    parser = argparse.ArgumentParser(
+        description="Sendico Mercari Japanese Pokemon deal scanner"
+    )
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--log-level", default="INFO")

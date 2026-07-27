@@ -71,7 +71,7 @@ class LotVisionAnalyzer:
         self.model = model
         self.max_images = max_images
         self.endpoint = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent"
         )
 
@@ -121,10 +121,21 @@ Return JSON only with this shape:
 """.strip()
 
         parts: list[dict[str, Any]] = [{"text": prompt}]
+        total_raw_bytes = 0
+        max_raw_bytes = 14_000_000
+
         for image_url in listing.image_urls[: self.max_images]:
-            image_part = self._image_part(image_url)
-            if image_part is not None:
-                parts.append(image_part)
+            image_part, raw_size = self._image_part(image_url)
+            if image_part is None:
+                continue
+            if total_raw_bytes + raw_size > max_raw_bytes:
+                LOGGER.warning("Skipping image because Gemini request would be too large")
+                continue
+            parts.append(image_part)
+            total_raw_bytes += raw_size
+
+        if len(parts) == 1:
+            raise RuntimeError("No listing images could be downloaded for Gemini analysis")
 
         payload = {
             "contents": [
@@ -143,9 +154,14 @@ Return JSON only with this shape:
             self.endpoint,
             params={"key": self.api_key},
             json=payload,
-            timeout=120.0,
+            timeout=180.0,
         )
-        response.raise_for_status()
+        if response.is_error:
+            detail = response.text[:1500]
+            raise RuntimeError(
+                f"Gemini API returned HTTP {response.status_code}: {detail}"
+            )
+
         data = response.json()
         text = self._extract_text(data)
         parsed = _json_object(text)
@@ -159,10 +175,14 @@ Return JSON only with this shape:
             for part in content.get("parts", []):
                 if "text" in part and part["text"]:
                     return str(part["text"])
-        raise ValueError(f"Gemini response did not contain text content: {data}")
+        prompt_feedback = data.get("promptFeedback") or data.get("prompt_feedback")
+        raise ValueError(
+            "Gemini response did not contain text content"
+            + (f": {prompt_feedback}" if prompt_feedback else "")
+        )
 
     @staticmethod
-    def _image_part(image_url: str) -> dict[str, Any] | None:
+    def _image_part(image_url: str) -> tuple[dict[str, Any] | None, int]:
         try:
             response = httpx.get(
                 image_url,
@@ -176,16 +196,27 @@ Return JSON only with this shape:
                 },
             )
             response.raise_for_status()
-            if len(response.content) > 12_000_000:
-                raise ValueError("image is larger than 12 MB")
+            if len(response.content) > 8_000_000:
+                raise ValueError("image is larger than 8 MB")
             mime = response.headers.get("content-type", "image/jpeg").split(";")[0]
+            if mime not in {
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "image/heic",
+                "image/heif",
+            }:
+                mime = "image/jpeg"
             encoded = base64.b64encode(response.content).decode("ascii")
-            return {
-                "inline_data": {
-                    "mime_type": mime,
-                    "data": encoded,
-                }
-            }
+            return (
+                {
+                    "inlineData": {
+                        "mimeType": mime,
+                        "data": encoded,
+                    }
+                },
+                len(response.content),
+            )
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning("Could not download image for Gemini analysis: %s", exc)
-            return None
+            return None, 0
