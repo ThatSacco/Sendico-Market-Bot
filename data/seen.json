@@ -120,9 +120,44 @@
   },
   "m23622488213": {
     "url": "https://sendico.com/shop/mercari/catalog/m23622488213",
-    "fingerprint": "f4c3fd28c4cc7eee3c53769a085858a8805933326d9858f060d59e639c6eb2aa",
+    "fingerprint": "67378fabaa39d9b7b3999a885133cc5524bb70b66ac70a5a454b5adbe5bf1619",
+    "alerted_fingerprint": "67378fabaa39d9b7b3999a885133cc5524bb70b66ac70a5a454b5adbe5bf1619",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "last_checked": "2026-07-27T06:29:35.933935+00:00"
+  },
+  "m61103418177": {
+    "url": "https://sendico.com/shop/mercari/catalog/m61103418177",
+    "fingerprint": "20775c42d3d7d489690cd962796da22ac977aa1702f6df0578e70ba5949635dd",
+    "alerted_fingerprint": "20775c42d3d7d489690cd962796da22ac977aa1702f6df0578e70ba5949635dd",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "last_checked": "2026-07-27T06:30:23.426022+00:00"
+  },
+  "m67524839437": {
+    "url": "https://sendico.com/shop/mercari/catalog/m67524839437",
+    "fingerprint": "9448a0628f9eb11221ae969a164b76a1bdecce75581bcc26c706dcb38f12e749",
     "alerted_fingerprint": null,
-    "last_outcome": "test mode analysed",
-    "last_checked": "2026-07-27T04:17:36.154002+00:00"
+    "last_outcome": "seller positive rating could not be verified; target card was not confirmed; target-card confidence is below threshold; target card could not be priced; no cards were priced",
+    "last_checked": "2026-07-27T06:31:06.201733+00:00"
+  },
+  "m50005481747": {
+    "url": "https://sendico.com/shop/mercari/catalog/m50005481747",
+    "fingerprint": "bebfbf6119583fa99b153acf5659aedc21cc124401afb0a3b38415bf08ac5161",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Gemini API returned HTTP 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash\\nPlease retry in 21.811865173s.\",\n    \"status\": \"RESOURCE_EXHAUSTED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.Help\",\n        \"links\": [\n          {\n            \"description\": \"Learn more about Gemini API quotas\",\n            \"url\": \"https://ai.google.dev/gemini-api/docs/rate-limits\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.QuotaFailure\",\n        \"violations\": [\n          {\n            \"quotaMetric\": \"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\n            \"quotaId\": \"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\n            \"quotaDimensions\": {\n              \"location\": \"global\",\n              \"model\": \"gemini-3.6-flash\"\n            },\n            \"quotaValue\": \"20\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.RetryInfo\",\n        \"retryDelay\": \"21s\"\n      }\n    ]\n  }\n}\n",
+    "last_checked": "2026-07-27T06:31:38.215538+00:00"
+  },
+  "m38164024758": {
+    "url": "https://sendico.com/shop/mercari/catalog/m38164024758",
+    "fingerprint": "2ef5af9dad6fdd083c2d6c115622c4f880b41e8d1dbeabcbd219741c6c1c4611",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Gemini API returned HTTP 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash\\nPlease retry in 495.344664ms.\",\n    \"status\": \"RESOURCE_EXHAUSTED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.Help\",\n        \"links\": [\n          {\n            \"description\": \"Learn more about Gemini API quotas\",\n            \"url\": \"https://ai.google.dev/gemini-api/docs/rate-limits\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.QuotaFailure\",\n        \"violations\": [\n          {\n            \"quotaMetric\": \"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\n            \"quotaId\": \"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\n            \"quotaDimensions\": {\n              \"location\": \"global\",\n              \"model\": \"gemini-3.6-flash\"\n            },\n            \"quotaValue\": \"20\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.RetryInfo\",\n        \"retryDelay\": \"0s\"\n      }\n    ]\n  }\n}\n",
+    "last_checked": "2026-07-27T06:31:59.531906+00:00"
+  },
+  "m33492254192": {
+    "url": "https://sendico.com/shop/mercari/catalog/m33492254192",
+    "fingerprint": "0f7b8f45697c6fd5bf566d31872a68e77d62b50034e177d85959a7bd5ee3c80e",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Gemini API returned HTTP 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash\\nPlease retry in 43.312145819s.\",\n    \"status\": \"RESOURCE_EXHAUSTED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.Help\",\n        \"links\": [\n          {\n            \"description\": \"Learn more about Gemini API quotas\",\n            \"url\": \"https://ai.google.dev/gemini-api/docs/rate-limits\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.QuotaFailure\",\n        \"violations\": [\n          {\n            \"quotaMetric\": \"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\n            \"quotaId\": \"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\n            \"quotaDimensions\": {\n              \"model\": \"gemini-3.6-flash\",\n              \"location\": \"global\"\n            },\n            \"quotaValue\": \"20\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.RetryInfo\",\n        \"retryDelay\": \"43s\"\n      }\n    ]\n  }\n}\n",
+    "last_checked": "2026-07-27T06:32:16.714857+00:00"
   }
 }

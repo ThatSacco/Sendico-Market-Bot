@@ -163,5 +163,15 @@
     "price_usd": 1.99,
     "title": "Slaking #76 Pokemon Japanese Miracle Twins",
     "fetched_at": "2026-07-27T06:04:02.466441+00:00"
+  },
+  "https://www.pricecharting.com/game/pokemon-japanese-rapid-strike-master/victini-vmax-13": {
+    "price_usd": 3.53,
+    "title": "Victini VMAX #13 Pokemon Japanese Rapid Strike Master",
+    "fetched_at": "2026-07-27T06:29:32.138517+00:00"
+  },
+  "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-master-ball-12": {
+    "price_usd": 17.42,
+    "title": "Victini [Master Ball] #12 Pokemon Japanese Black Bolt",
+    "fetched_at": "2026-07-27T06:29:35.731358+00:00"
   }
 }
