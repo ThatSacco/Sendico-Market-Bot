@@ -115,19 +115,47 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         api_key=config.groq_api_key or "",
         model=str(vision_cfg["model"]),
         max_images=int(vision_cfg["max_images_per_listing"]),
-        max_images_per_request=int(vision_cfg.get("max_images_per_request", 3)),
-        two_pass_enabled=bool(vision_cfg.get("two_pass_enabled", True)),
-        two_pass_listing_types=list(
-            vision_cfg.get("two_pass_listing_types", ["lot", "collection"])
+        max_local_crops=int(vision_cfg.get("max_local_crops_per_listing", 40)),
+        crop_batch_size=int(vision_cfg.get("crop_batch_size", 4)),
+        request_spacing_seconds=float(
+            vision_cfg.get("request_spacing_seconds", 65.0)
         ),
-        max_crops_per_listing=int(vision_cfg.get("max_crops_per_listing", 16)),
-        crop_minimum_confidence=float(
-            vision_cfg.get("crop_minimum_confidence", 0.40)
+        max_completion_tokens=int(
+            vision_cfg.get("max_completion_tokens", 1600)
         ),
-        crop_padding_percent=float(vision_cfg.get("crop_padding_percent", 0.06)),
-        crop_max_dimension_px=int(vision_cfg.get("crop_max_dimension_px", 1400)),
-        supporting_images_in_crop_pass=int(
-            vision_cfg.get("supporting_images_in_crop_pass", 6)
+        contact_sheet_max_dimension_px=int(
+            vision_cfg.get("contact_sheet_max_dimension_px", 1100)
+        ),
+        contact_sheet_jpeg_quality=int(
+            vision_cfg.get("contact_sheet_jpeg_quality", 82)
+        ),
+        analysis_max_dimension_px=int(
+            vision_cfg.get("local_analysis_max_dimension_px", 2200)
+        ),
+        crop_max_dimension_px=int(
+            vision_cfg.get("crop_max_dimension_px", 1400)
+        ),
+        crop_jpeg_quality=int(vision_cfg.get("crop_jpeg_quality", 86)),
+        minimum_card_area_ratio=float(
+            vision_cfg.get("minimum_card_area_ratio", 0.012)
+        ),
+        maximum_card_area_ratio=float(
+            vision_cfg.get("maximum_card_area_ratio", 0.98)
+        ),
+        minimum_rectangularity=float(
+            vision_cfg.get("minimum_rectangularity", 0.58)
+        ),
+        card_aspect_ratio_min=float(
+            vision_cfg.get("card_aspect_ratio_min", 0.52)
+        ),
+        card_aspect_ratio_max=float(
+            vision_cfg.get("card_aspect_ratio_max", 0.84)
+        ),
+        duplicate_phash_distance=int(
+            vision_cfg.get("duplicate_phash_distance", 10)
+        ),
+        crop_padding_percent=float(
+            vision_cfg.get("crop_padding_percent", 0.025)
         ),
     )
     state = StateStore(config.path("data/seen.json"))

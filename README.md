@@ -2,20 +2,58 @@
 
 This bot searches Sendico's Mercari Pokemon listings, identifies Japanese raw cards, checks PriceCharting values, and posts qualifying results to Discord.
 
-## Vision provider
+## Vision pipeline
 
-The scanner uses Groq vision with the model:
+The scanner uses Groq vision with:
 
 ```text
 qwen/qwen3.6-27b
 ```
 
-Each lot uses at most two Groq requests:
+The previous two-pass Groq overview/crop workflow has been removed. The current pipeline is:
 
-1. An overview request using up to three selected Sendico photos.
-2. A crop-identification request using up to three labelled contact sheets containing the enlarged card crops.
+```text
+Sendico listing photos
+    -> local OpenCV rectangle/grid detection
+    -> perspective-corrected card crops
+    -> perceptual-hash alternate-photo deduplication
+    -> small JPEG contact-sheet batches
+    -> Groq card identification
+    -> PriceCharting
+    -> Discord
+```
 
-If Groq returns a rate-limit response, the scanner stops cleanly. Already processed listings remain stored in `data/seen.json`, so later runs can continue with unprocessed listings.
+Overview photos and full listing descriptions are no longer sent to Groq. Every Groq request contains one compressed contact-sheet image and a short identification prompt.
+
+## TPM protection
+
+The default configuration is deliberately conservative for a Groq account with an 8,000-token-per-minute limit:
+
+```yaml
+vision:
+  crop_batch_size: 4
+  request_spacing_seconds: 65
+  contact_sheet_max_dimension_px: 1100
+  max_completion_tokens: 1600
+```
+
+If Groq returns HTTP 413 because one request is too large, the batch is automatically divided into smaller batches. A one-card batch is retried once with a smaller, more compressed image. A normal HTTP 429 quota response still stops the run cleanly so unprocessed listings can resume later.
+
+Because batches are intentionally spaced by 65 seconds, large card lots take longer to process. The weekly workflow retains a 180-minute timeout.
+
+## Local card handling
+
+The local preprocessor:
+
+- detects rotated card rectangles using OpenCV contours;
+- detects aligned card grids using long horizontal and vertical border lines;
+- recognizes a full-frame single-card close-up;
+- perspective-corrects and compresses each crop;
+- uses perceptual hashes to remove alternate-photo views;
+- preserves two identical physical cards when they appear together in the same overview photo;
+- can replace an overview crop with a sharper matching close-up from another listing photo.
+
+The rectangle and deduplication thresholds can be adjusted in `config.yaml`.
 
 ## Required GitHub secrets
 
@@ -32,35 +70,47 @@ GROQ_API_KEY
 DISCORD_WEBHOOK_URL
 ```
 
-The previous `GEMINI_API_KEY` secret is no longer used.
+The previous `GEMINI_API_KEY` secret is not used.
 
 ## Schedule
 
 The workflow runs once each week at midnight at the start of Thursday in the `Australia/Sydney` time zone.
 
-Sydney alternates between AEST and AEDT. The workflow therefore schedules both possible UTC times and uses a timezone guard to allow only the trigger that is actually Thursday at 00:00 in Sydney.
+Sydney alternates between AEST and AEDT. The workflow schedules both possible UTC times and uses a timezone guard so only the trigger that is actually Thursday at 00:00 in Sydney proceeds.
 
 Manual runs through **Actions -> Run workflow** are always allowed.
 
-## Groq image limits
-
-The code caps each Groq request at three images to match the current Qwen 3.6 model limit. The bot can still download up to 12 Sendico photos and selects the most useful overview images. Enlarged card crops are combined into labelled contact sheets so up to 16 cards can be analysed in one second request.
-
 ## Current search scope
 
-The watchlist currently contains one target:
+The active watchlist currently contains:
 
 ```text
 Victini AR 097/086 - Black Bolt sv11B
 ```
 
-The next planned update is self-service watchlist management, including adding and removing cards through Discord commands.
+## Listing deduplication and retry limit
 
-## Retry limit
+The scanner stores listing state in `data/seen.json`.
 
-The scanner stores listing state in `data/seen.json`. Retryable failures are limited to three total attempts for the same listing fingerprint. The counter resets only when the listing's price, title, seller rating or images change. Configure this in `config.yaml`:
+- Successfully processed unchanged listings are skipped.
+- Already-alerted unchanged listings are not alerted again.
+- Retryable failures receive no more than three total attempts for the same fingerprint.
+- The counter resets when the listing price, title, seller rating, or image list changes.
+
+Configure the retry limit in `config.yaml`:
 
 ```yaml
 retry_policy:
   max_attempts_per_listing: 3
 ```
+
+## New dependencies
+
+The local vision stage adds:
+
+```text
+numpy
+opencv-python-headless
+```
+
+GitHub Actions installs them automatically from `requirements.txt`.

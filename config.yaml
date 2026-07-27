@@ -49,27 +49,40 @@ vision:
   provider: "groq"
   model: "qwen/qwen3.6-27b"
 
-  # Download several Sendico photos. Groq currently accepts fewer images in one
-  # request, so the bot selects up to three overview images and combines enlarged
-  # card crops into up to three labelled contact sheets for pass 2.
+  # Download up to 12 Sendico photos, then detect and crop card-shaped regions
+  # locally with OpenCV. Overview photos are no longer sent to Groq.
   max_images_per_listing: 12
-  max_images_per_request: 3
+  max_local_crops_per_listing: 40
+  local_analysis_max_dimension_px: 2200
+  crop_max_dimension_px: 1400
+  crop_jpeg_quality: 86
+  crop_padding_percent: 0.025
+
+  # Conservative local rectangle filters for standard Pokemon-card proportions.
+  minimum_card_area_ratio: 0.012
+  maximum_card_area_ratio: 0.98
+  minimum_rectangularity: 0.58
+  card_aspect_ratio_min: 0.52
+  card_aspect_ratio_max: 0.84
+
+  # Perceptual hashing removes alternate-photo views without merging two
+  # identical physical cards that appear together in the same overview photo.
+  duplicate_phash_distance: 10
+
+  # Each Groq request contains one small JPEG contact sheet. Four crops per
+  # request is deliberately conservative for the 8,000 TPM free-tier limit.
+  # Requests are spaced beyond one minute so separate batches do not overlap in
+  # the same TPM window. A 413 request-too-large response is split automatically.
+  crop_batch_size: 4
+  request_spacing_seconds: 65
+  contact_sheet_max_dimension_px: 1100
+  contact_sheet_jpeg_quality: 82
+  max_completion_tokens: 1600
 
   # Price and include every Japanese card identified at 95% or higher.
   minimum_card_confidence: 0.95
   minimum_target_confidence: 0.85
   maximum_cards_to_price: 100
-
-  # At most two Groq requests per lot: overview plus batched crop contact sheets.
-  two_pass_enabled: true
-  two_pass_listing_types:
-    - "lot"
-    - "collection"
-  max_crops_per_listing: 16
-  crop_minimum_confidence: 0.40
-  crop_padding_percent: 0.06
-  crop_max_dimension_px: 1400
-  supporting_images_in_crop_pass: 2
 
 pricing:
   request_delay_seconds: 1.2
