@@ -25,9 +25,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         raise RuntimeError("This MVP expects exactly one active watchlist card")
     target = targets[0]
     vision_cfg = config.raw["vision"]
-    if vision_cfg.get("enabled", True) and not config.openai_api_key:
+    if vision_cfg.get("enabled", True) and not config.gemini_api_key:
         raise RuntimeError(
-            "OPENAI_API_KEY is required to identify and value all cards in lot images"
+            "GEMINI_API_KEY is required to identify and value all cards in lot images"
         )
 
     seller_cfg = config.raw.get("seller_verification", {})
