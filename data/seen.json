@@ -3,22 +3,22 @@
     "url": "https://sendico.com/shop/mercari/catalog/m21740128151",
     "fingerprint": "d327199fa1d684a91aa45778fd05e6bf79ecacd310852bf37d87ec5dd78e6805",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Gemini API returned HTTP 401: {\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\",\n    \"status\": \"UNAUTHENTICATED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\",\n        \"reason\": \"ACCESS_TOKEN_TYPE_UNSUPPORTED\",\n        \"metadata\": {\n          \"service\": \"generativelanguage.googleapis.com\",\n          \"method\": \"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\"\n        }\n      }\n    ]\n  }\n}\n",
-    "last_checked": "2026-07-27T03:59:21.761963+00:00"
+    "last_outcome": "error: Gemini API returned HTTP 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "last_checked": "2026-07-27T04:07:19.945560+00:00"
   },
   "m40113077517": {
     "url": "https://sendico.com/shop/mercari/catalog/m40113077517",
-    "fingerprint": "1f809988350394c884fc1b5109b505e4311d845454c7b944f3381a2507f590b5",
+    "fingerprint": "36f6e16ca5d1c5e3e1405ecc40e5083a4e1d334d75484ae658afb8a309354239",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Gemini API returned HTTP 401: {\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\",\n    \"status\": \"UNAUTHENTICATED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\",\n        \"reason\": \"ACCESS_TOKEN_TYPE_UNSUPPORTED\",\n        \"metadata\": {\n          \"method\": \"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\",\n          \"service\": \"generativelanguage.googleapis.com\"\n        }\n      }\n    ]\n  }\n}\n",
-    "last_checked": "2026-07-27T03:59:28.140300+00:00"
+    "last_outcome": "error: Gemini API returned HTTP 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "last_checked": "2026-07-27T04:07:31.028145+00:00"
   },
   "m97487461762": {
     "url": "https://sendico.com/shop/mercari/catalog/m97487461762",
     "fingerprint": "3e82549fff4291dde9e29cd98a916cff4af88806ea70701da070175a6a4af268",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Gemini API returned HTTP 401: {\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\",\n    \"status\": \"UNAUTHENTICATED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\",\n        \"reason\": \"ACCESS_TOKEN_TYPE_UNSUPPORTED\",\n        \"metadata\": {\n          \"method\": \"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\",\n          \"service\": \"generativelanguage.googleapis.com\"\n        }\n      }\n    ]\n  }\n}\n",
-    "last_checked": "2026-07-27T03:59:32.089905+00:00"
+    "last_outcome": "error: Gemini API returned HTTP 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "last_checked": "2026-07-27T04:07:34.895074+00:00"
   },
   "m51851103951": {
     "url": "https://sendico.com/shop/mercari/catalog/m51851103951",
