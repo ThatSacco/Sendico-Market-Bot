@@ -1,1 +1,233 @@
-[]
+[
+  {
+    "listing": {
+      "code": "m21740128151",
+      "url": "https://sendico.com/shop/mercari/catalog/m21740128151",
+      "title": "3,600\n(\n21.96\n)\nVictini AR SV11B Black Bolt 097/0...",
+      "price_yen": 3600,
+      "image_urls": [
+        "https://static.mercdn.net/thumb/item/jpeg/m21740128151_1.jpg?1785064207"
+      ],
+      "description": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved",
+      "seller_positive_ratings": null,
+      "raw_text": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved"
+    },
+    "vision": {
+      "listing_type": "single",
+      "target_present": true,
+      "target_confidence": 0.99,
+      "cards": [
+        {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.99,
+          "evidence_image_indexes": [
+            0
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        }
+      ],
+      "unidentified_card_count": 0,
+      "notes": []
+    },
+    "priced_cards": [
+      {
+        "card": {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.99,
+          "evidence_image_indexes": [
+            0
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        },
+        "unit_price_usd": 17.84,
+        "unit_price_aud": 27.1168,
+        "source_url": "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97",
+        "source_title": "Victini #97 Pokemon Japanese Black Bolt",
+        "match_confidence": 1.0
+      }
+    ],
+    "acquisition_cost_aud": 41.82000000000001,
+    "listing_price_aud": 36.720000000000006,
+    "sendico_fee_aud": 5.1000000000000005,
+    "total_identified_value_aud": 27.1168,
+    "saving_aud": -14.703200000000006,
+    "saving_percent": -54.221737078121336,
+    "qualifies": false,
+    "provisional_qualifies": false,
+    "requires_manual_seller_verification": true,
+    "rejection_reasons": [
+      "seller positive rating could not be verified",
+      "saving is -54.2%; minimum is 20.0%"
+    ]
+  },
+  {
+    "listing": {
+      "code": "m40113077517",
+      "url": "https://sendico.com/shop/mercari/catalog/m40113077517",
+      "title": "1,900\n(\n11.59\n)\nVictini AR SV11B Black Bolt 097/0...",
+      "price_yen": 1900,
+      "image_urls": [
+        "https://static.mercdn.net/thumb/item/jpeg/m40113077517_1.jpg?1785063675"
+      ],
+      "description": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved",
+      "seller_positive_ratings": null,
+      "raw_text": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved"
+    },
+    "vision": {
+      "listing_type": "single",
+      "target_present": true,
+      "target_confidence": 0.98,
+      "cards": [
+        {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.98,
+          "evidence_image_indexes": [
+            1
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        }
+      ],
+      "unidentified_card_count": 0,
+      "notes": []
+    },
+    "priced_cards": [
+      {
+        "card": {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.98,
+          "evidence_image_indexes": [
+            1
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        },
+        "unit_price_usd": 17.84,
+        "unit_price_aud": 27.1168,
+        "source_url": "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97",
+        "source_title": "Victini #97 Pokemon Japanese Black Bolt",
+        "match_confidence": 1.0
+      }
+    ],
+    "acquisition_cost_aud": 24.480000000000004,
+    "listing_price_aud": 19.380000000000003,
+    "sendico_fee_aud": 5.1000000000000005,
+    "total_identified_value_aud": 27.1168,
+    "saving_aud": 2.6367999999999974,
+    "saving_percent": 9.723861222563123,
+    "qualifies": false,
+    "provisional_qualifies": false,
+    "requires_manual_seller_verification": true,
+    "rejection_reasons": [
+      "seller positive rating could not be verified",
+      "saving is 9.7%; minimum is 20.0%"
+    ]
+  },
+  {
+    "listing": {
+      "code": "m97487461762",
+      "url": "https://sendico.com/shop/mercari/catalog/m97487461762",
+      "title": "2,600\n(\n15.86\n)\nPokémon Card Victini sv11B AR",
+      "price_yen": 2600,
+      "image_urls": [
+        "https://static.mercdn.net/thumb/item/jpeg/m97487461762_1.jpg?1780761420"
+      ],
+      "description": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved",
+      "seller_positive_ratings": null,
+      "raw_text": "Usage Guide\nShipping Calculator\nOrder Form\nUSD\nLight\nSign Up/Log In\nHome\nMercari\nAbout Us\nAbout Us\n特定商取引法に基づく表記\n会社概要\nTestimonials\nTerms and Conditions\nPrivacy Policy\nShop Now\nJDirectItems Auction\nRakuten\nRakuma\nJDirectItems Shopping\nMercari\nOther Stores\nPayments & Shipping\nPayments\nOptional Services\nShipping Options\nProhibited items\nHelp\nFAQ\nUsage Guide\nShipping Calculator\nFrom Japan, To You\nCopyright © 2026 Sendico.\nAll Rights Reserved"
+    },
+    "vision": {
+      "listing_type": "single",
+      "target_present": true,
+      "target_confidence": 0.98,
+      "cards": [
+        {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.98,
+          "evidence_image_indexes": [
+            1
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        }
+      ],
+      "unidentified_card_count": 0,
+      "notes": []
+    },
+    "priced_cards": [
+      {
+        "card": {
+          "name_en": "Victini",
+          "name_jp": "ビクティニ",
+          "set_name": "Pokemon Japanese Black Bolt",
+          "set_code": "sv11B",
+          "card_number": "097/086",
+          "rarity": "AR",
+          "language": "Japanese",
+          "quantity": 1,
+          "confidence": 0.98,
+          "evidence_image_indexes": [
+            1
+          ],
+          "condition": "near_mint",
+          "is_target": true
+        },
+        "unit_price_usd": 17.84,
+        "unit_price_aud": 27.1168,
+        "source_url": "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97",
+        "source_title": "Victini #97 Pokemon Japanese Black Bolt",
+        "match_confidence": 1.0
+      }
+    ],
+    "acquisition_cost_aud": 31.620000000000005,
+    "listing_price_aud": 26.520000000000003,
+    "sendico_fee_aud": 5.1000000000000005,
+    "total_identified_value_aud": 27.1168,
+    "saving_aud": -4.503200000000003,
+    "saving_percent": -16.606679254189295,
+    "qualifies": false,
+    "provisional_qualifies": false,
+    "requires_manual_seller_verification": true,
+    "rejection_reasons": [
+      "seller positive rating could not be verified",
+      "saving is -16.6%; minimum is 20.0%"
+    ]
+  }
+]
