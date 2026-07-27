@@ -210,7 +210,7 @@ def send_discord_test_start(
         ),
         "color": 0x5865F2,
         "fields": [
-            {"name": "Gemini model", "value": model, "inline": True},
+            {"name": "Groq model", "value": model, "inline": True},
             {
                 "name": "Maximum listing alerts",
                 "value": str(listing_limit),
@@ -255,7 +255,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
             {
                 "name": "Test status",
                 "value": (
-                    "Restrictions ignored. This confirms Sendico, Gemini, pricing "
+                    "Restrictions ignored. This confirms Sendico, Groq, pricing "
                     "and Discord reached the result stage."
                 ),
                 "inline": False,
@@ -272,7 +272,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                 "inline": True,
             },
             {
-                "name": "Gemini listing type",
+                "name": "Groq listing type",
                 "value": vision.listing_type,
                 "inline": True,
             },
@@ -301,7 +301,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                 "inline": False,
             },
             {
-                "name": "Cards identified by Gemini",
+                "name": "Cards identified by Groq",
                 "value": "\n".join(identified_lines)[:1024]
                 or "No cards identified at the configured confidence",
                 "inline": False,

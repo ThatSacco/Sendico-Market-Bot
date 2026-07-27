@@ -20,12 +20,16 @@ class AppConfig:
         return int(self.raw["minimum_seller_positive_ratings"])
 
     @property
+    def minimum_saving_percent(self) -> float:
+        return float(self.raw.get("minimum_saving_percent", 0.0))
+
+    @property
     def discord_webhook_url(self) -> str | None:
         return os.getenv("DISCORD_WEBHOOK_URL")
 
     @property
-    def gemini_api_key(self) -> str | None:
-        return os.getenv("GEMINI_API_KEY")
+    def groq_api_key(self) -> str | None:
+        return os.getenv("GROQ_API_KEY")
 
     def path(self, relative: str) -> Path:
         return self.root / relative

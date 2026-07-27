@@ -1,32 +1,23 @@
-# Unlimited Sendico Scan Update
+# Groq weekly scanner update with three-attempt retry limit
 
-This patch removes the configured limits on search results and listings processed.
+Upload the contents of this folder to the root of the GitHub repository and replace matching files.
 
-## Install
+## Changed behaviour
 
-1. Extract the ZIP.
-2. Upload the **contents** of the extracted folder to the root of the GitHub repository.
-3. Replace the matching files.
-4. Commit directly to `main`.
-5. Run the workflow manually from **Actions > Scan Sendico Pokemon Deals > Run workflow**.
+- Groq remains the image-analysis provider.
+- The workflow remains scheduled for Thursday at 12:00 AM in Sydney.
+- An unchanged listing with a retryable failure receives no more than **three total attempts**.
+- Retryable outcomes are processing errors and `seller rating unverified`.
+- After attempt 3, the unchanged listing is skipped.
+- A changed price, title, seller rating or image list creates a new fingerprint and resets the counter to attempt 1.
+- Groq rate-limit interruptions are recorded as an attempt before the run pauses.
+- Successful, rejected and already-alerted unchanged listings continue to be skipped immediately.
 
-## Behaviour
-
-- `max_results_per_search: 0` means no configured result cap.
-- `max_listings_per_run: 0` means process every unique listing found.
-- `maximum_scroll_rounds: 0` means keep scrolling until the number of unique Sendico listings is unchanged for three consecutive rounds.
-- The workflow timeout is increased to 180 minutes.
-- The existing Monday and Thursday schedule remains enabled.
-
-## Important
-
-An unlimited scan may make up to two Gemini requests for every listing requiring two-pass analysis. Review Gemini usage after the first manual run.
-
-To restore a cap later, set positive numbers in `config.yaml`, for example:
+The limit is configured in `config.yaml`:
 
 ```yaml
-sendico:
-  max_results_per_search: 50
-  max_listings_per_run: 25
-  maximum_scroll_rounds: 10
+retry_policy:
+  max_attempts_per_listing: 3
 ```
+
+After uploading, commit to `main` and manually run the workflow once.

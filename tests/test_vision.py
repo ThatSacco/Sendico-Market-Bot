@@ -206,3 +206,92 @@ def test_explicit_master_ball_variant_is_retained():
         _target(),
     )
     assert result.cards[0].variant == "master_ball"
+
+
+def _jpeg_bytes(width: int = 200, height: int = 300) -> bytes:
+    import io
+    from PIL import Image
+
+    output = io.BytesIO()
+    Image.new("RGB", (width, height), "white").save(output, format="JPEG")
+    return output.getvalue()
+
+
+def test_crop_contact_sheets_respect_groq_image_limit():
+    analyzer = LotVisionAnalyzer(
+        api_key="test",
+        model="qwen/qwen3.6-27b",
+        max_images=12,
+        max_images_per_request=3,
+    )
+    crops = [
+        CardCrop(index, 1, "image/jpeg", _jpeg_bytes())
+        for index in range(1, 17)
+    ]
+    sheets = analyzer._make_crop_contact_sheets(crops)
+    assert len(sheets) == 3
+    assert all(sheet.startswith(b"\xff\xd8") for sheet in sheets)
+
+
+def test_groq_request_uses_bearer_auth_and_json_mode(monkeypatch):
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model="qwen/qwen3.6-27b",
+        max_images=3,
+        max_images_per_request=3,
+    )
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+        is_error = False
+        text = ""
+
+        @staticmethod
+        def json():
+            return {
+                "choices": [
+                    {"message": {"content": '{"listing_type":"single"}'}}
+                ]
+            }
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return FakeResponse()
+
+    monkeypatch.setattr("pokemon_deal_bot.vision.httpx.post", fake_post)
+    result = analyzer._generate(
+        [
+            {"text": "Return JSON"},
+            analyzer._inline_part("image/jpeg", _jpeg_bytes()),
+        ]
+    )
+    assert result["listing_type"] == "single"
+    assert captured["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert captured["headers"]["Authorization"] == "Bearer secret-key"
+    assert captured["json"]["model"] == "qwen/qwen3.6-27b"
+    assert captured["json"]["response_format"] == {"type": "json_object"}
+
+
+def test_groq_rate_limit_raises_specific_error(monkeypatch):
+    import pytest
+    from pokemon_deal_bot.vision import VisionRateLimitError
+
+    analyzer = LotVisionAnalyzer(
+        api_key="secret-key",
+        model="qwen/qwen3.6-27b",
+        max_images=3,
+    )
+
+    class FakeResponse:
+        status_code = 429
+        is_error = True
+        text = "rate limit reached"
+
+    monkeypatch.setattr(
+        "pokemon_deal_bot.vision.httpx.post",
+        lambda *args, **kwargs: FakeResponse(),
+    )
+    with pytest.raises(VisionRateLimitError):
+        analyzer._generate([{"text": "Return JSON"}])

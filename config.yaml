@@ -3,7 +3,13 @@ currency: AUD
 minimum_seller_positive_ratings: 301
 shipping_allowance_aud: 0.0
 
-# Production mode. GitHub Actions runs this scanner twice per week.
+# An unchanged listing with a retryable failure is attempted no more than three
+# times in total. If its price, title, seller rating or images change, the
+# fingerprint changes and the counter starts again for the updated listing.
+retry_policy:
+  max_attempts_per_listing: 3
+
+# Production mode. The workflow runs once per week at midnight Thursday in Sydney.
 test_mode:
   enabled: false
   max_alerts_per_run: 1
@@ -19,8 +25,9 @@ seller_verification:
 
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
-  # Zero means no configured cap. The scanner keeps loading until Sendico
-  # returns no new listing links for several consecutive scrolls.
+
+  # Zero means no configured cap. Previously processed unchanged listings are
+  # skipped, and the run pauses cleanly if the Groq free-tier limit is reached.
   max_results_per_search: 0
   max_listings_per_run: 0
   page_timeout_ms: 60000
@@ -30,6 +37,7 @@ sendico:
   maximum_scroll_rounds: 0
   stable_scroll_rounds_before_stop: 3
   scroll_pause_ms: 1500
+
   search_terms:
     - "ビクティニ AR まとめ売り"
     - "ビクティニ ポケモンカード セット"
@@ -38,17 +46,21 @@ sendico:
 
 vision:
   enabled: true
-  model: "gemini-3.6-flash"
-  # Review several Sendico photos. Alternative views help verify card variants
-  # and condition without being counted as additional physical cards.
-  max_images_per_listing: 12
+  provider: "groq"
+  model: "qwen/qwen3.6-27b"
 
-  # Price and include every Japanese card Gemini identifies at 95% or higher.
+  # Download several Sendico photos. Groq currently accepts fewer images in one
+  # request, so the bot selects up to three overview images and combines enlarged
+  # card crops into up to three labelled contact sheets for pass 2.
+  max_images_per_listing: 12
+  max_images_per_request: 3
+
+  # Price and include every Japanese card identified at 95% or higher.
   minimum_card_confidence: 0.95
   minimum_target_confidence: 0.85
   maximum_cards_to_price: 100
 
-  # Two Gemini requests maximum per lot: overview plus one batched crop request.
+  # At most two Groq requests per lot: overview plus batched crop contact sheets.
   two_pass_enabled: true
   two_pass_listing_types:
     - "lot"
@@ -57,7 +69,7 @@ vision:
   crop_minimum_confidence: 0.40
   crop_padding_percent: 0.06
   crop_max_dimension_px: 1400
-  supporting_images_in_crop_pass: 6
+  supporting_images_in_crop_pass: 2
 
 pricing:
   request_delay_seconds: 1.2

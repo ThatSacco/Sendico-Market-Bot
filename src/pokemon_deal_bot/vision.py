@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .models import IdentifiedCard, SendicoListing, VisionResult, WatchCard
 
@@ -206,6 +206,10 @@ def _merge_cards(
     return list(crop_by_key.values())
 
 
+class VisionRateLimitError(RuntimeError):
+    """Raised when Groq asks the scanner to pause because a quota is exhausted."""
+
+
 class LotVisionAnalyzer:
     def __init__(
         self,
@@ -213,6 +217,7 @@ class LotVisionAnalyzer:
         model: str,
         max_images: int,
         *,
+        max_images_per_request: int = 3,
         two_pass_enabled: bool = True,
         two_pass_listing_types: list[str] | None = None,
         max_crops_per_listing: int = 16,
@@ -224,6 +229,7 @@ class LotVisionAnalyzer:
         self.api_key = api_key
         self.model = model
         self.max_images = max_images
+        self.max_images_per_request = max(1, min(3, max_images_per_request))
         self.two_pass_enabled = two_pass_enabled
         self.two_pass_listing_types = {
             item.lower() for item in (two_pass_listing_types or ["lot", "collection"])
@@ -233,15 +239,12 @@ class LotVisionAnalyzer:
         self.crop_padding_percent = max(0.0, min(0.25, crop_padding_percent))
         self.crop_max_dimension_px = max(400, crop_max_dimension_px)
         self.supporting_images_in_crop_pass = max(0, supporting_images_in_crop_pass)
-        self.endpoint = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent"
-        )
+        self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
 
     def analyze(self, listing: SendicoListing, target: WatchCard) -> VisionResult:
         downloaded = self._download_images(listing.image_urls[: self.max_images])
         if not downloaded:
-            raise RuntimeError("No listing images could be downloaded for Gemini analysis")
+            raise RuntimeError("No listing images could be downloaded for Groq analysis")
 
         overview_payload = self._overview_pass(listing, target, downloaded)
         overview_result = parse_vision_result(overview_payload, target)
@@ -290,14 +293,14 @@ class LotVisionAnalyzer:
             "only identities used for valuation."
         )
         notes.append(
-            f"Two-pass Gemini analysis: {len(selected)} regions selected, "
+            f"Two-pass Groq analysis: {len(selected)} regions selected, "
             f"{len(crops)} enlarged crops sent in one second request, "
             f"{identified_crop_count} crops identified."
         )
         notes.append(
-            f"Gemini reviewed {len(downloaded)} Sendico listing photo(s); "
+            f"Groq reviewed {len(downloaded)} Sendico listing photo(s); "
             f"up to {min(len(downloaded), self.supporting_images_in_crop_pass)} "
-            "full-photo views were included in pass 2 to verify variants and condition."
+            "full-photo views were included in pass 2 when image slots were available."
         )
 
         return VisionResult(
@@ -315,6 +318,7 @@ class LotVisionAnalyzer:
         target: WatchCard,
         images: list[DownloadedImage],
     ) -> dict[str, Any]:
+        selected_images = self._select_overview_images(images)
         prompt = f"""
 You are auditing a Japanese Pokemon TCG Mercari listing. This is pass 1 of a two-pass process.
 
@@ -335,9 +339,9 @@ LISTING TEXT:
 Tasks:
 1. Classify the listing as single, lot, collection, or unknown.
 2. Identify any Japanese raw Pokemon cards whose exact card number is already readable. Do not guess.
-3. Review all supplied listing photos. Alternate photos may be close-ups, backs, or foil-angle views of the same physical cards; use them as supporting evidence and never count them as extra copies.
+3. Review every supplied listing photo. Alternate photos can be close-ups or foil-angle views of the same physical cards; never count them as extra copies.
 4. Locate every distinct raw card visible in the best overview/group image. Return one bounding box per physical card. Prefer the image containing the most distinct cards and avoid duplicate regions from alternate views.
-5. Bounding boxes use normalized 0-1000 coordinates in this exact order: [y_min, x_min, y_max, x_max]. image_index is 1-based in the order supplied.
+5. Bounding boxes use normalized 0-1000 coordinates in this exact order: [y_min, x_min, y_max, x_max]. image_index must use the original listing-image number printed before each image.
 6. Mark possible_target true only when the card artwork or visible text resembles {target.english_name}/{target.japanese_name}. This is only a locator hint, not final identification.
 7. Ignore slabs, sleeves without cards, boxes, accessories and non-Pokemon cards.
 8. For variant, default to normal_holo. Only use poke_ball, master_ball, reverse_holo or other when a special foil/pattern is clearly proven by the photos or listing text. Standard set holofoil is normal_holo.
@@ -376,8 +380,8 @@ Return JSON only:
 }}
 """.strip()
         parts: list[dict[str, Any]] = [{"text": prompt}]
-        for image in images:
-            parts.append({"text": f"Listing image {image.image_index}:"})
+        for image in selected_images:
+            parts.append({"text": f"Original listing image {image.image_index}:"})
             parts.append(self._inline_part(image.mime_type, image.data))
         return self._generate(parts)
 
@@ -389,7 +393,7 @@ Return JSON only:
         supporting_images: list[DownloadedImage],
     ) -> dict[str, Any]:
         prompt = f"""
-You are auditing enlarged crops from one Japanese Pokemon TCG Mercari listing. This is pass 2.
+You are auditing enlarged card crops from one Japanese Pokemon TCG Mercari listing. This is pass 2.
 
 TARGET CARD:
 - English name: {target.english_name}
@@ -397,13 +401,12 @@ TARGET CARD:
 - Set code: {target.set_code}
 - Card number: {target.card_number}
 
-Each supplied crop is labelled with a crop_index. Usually each crop contains one physical card.
-Identify a card only when its exact printed card number is readable or the identity is otherwise unmistakable from the exact artwork and set context. Do not invent a number. Include Japanese raw Pokemon cards only. Return one entry for every confidently identified crop. If two crops show two physical copies of the same card, return both entries with quantity 1; the software will combine them. If a crop is unreadable, add its index to unrecognized_crop_indexes.
+The supplied contact sheets contain labelled panels such as Crop 1, Crop 2 and so on. Usually each panel contains one physical card. Identify a card only when its exact printed card number is readable or the identity is otherwise unmistakable from the exact artwork and set context. Do not invent a number. Include Japanese raw Pokemon cards only. Return one entry for every confidently identified crop. If two crop panels show two physical copies of the same card, return both entries with quantity 1. If a crop is unreadable, add its index to unrecognized_crop_indexes.
 
 VARIANT RULE — IMPORTANT:
 - Always default to variant normal_holo.
 - Standard holofoil and ordinary non-holo printings are normal_holo.
-- Only return poke_ball, master_ball, reverse_holo or other when a supporting photo or crop clearly proves that exact special pattern.
+- Only return poke_ball, master_ball, reverse_holo or other when a photo or crop clearly proves that exact special pattern.
 - If the foil pattern is unclear, return normal_holo. Never infer a premium variant from a PriceCharting title.
 - Supporting listing photos may show alternate angles or close-ups of the same physical cards. Use them only to verify identity, variant and condition; do not count them as extra copies.
 
@@ -436,27 +439,31 @@ Return JSON only:
 }}
 """.strip()
         parts: list[dict[str, Any]] = [{"text": prompt}]
-        for crop in crops:
+        sheets = self._make_crop_contact_sheets(crops)
+        for sheet_index, sheet_data in enumerate(sheets, start=1):
             parts.append(
                 {
                     "text": (
-                        f"Crop {crop.crop_index} from original listing image "
-                        f"{crop.source_image_index}:"
+                        f"Crop contact sheet {sheet_index}. Read the Crop N label "
+                        "above each panel and return that N as crop_index."
                     )
                 }
             )
-            parts.append(self._inline_part(crop.mime_type, crop.data))
+            parts.append(self._inline_part("image/jpeg", sheet_data))
 
-        for image in supporting_images[: self.supporting_images_in_crop_pass]:
-            parts.append(
-                {
-                    "text": (
-                        f"Supporting full listing image {image.image_index}. "
-                        "This may be another view of cards already shown; do not count copies from it."
-                    )
-                }
-            )
-            parts.append(self._inline_part(image.mime_type, image.data))
+        image_slots_remaining = max(0, self.max_images_per_request - len(sheets))
+        if image_slots_remaining:
+            selected_support = self._select_overview_images(supporting_images)
+            for image in selected_support[: min(image_slots_remaining, self.supporting_images_in_crop_pass)]:
+                parts.append(
+                    {
+                        "text": (
+                            f"Supporting full listing image {image.image_index}. "
+                            "Do not count copies from this supporting image."
+                        )
+                    }
+                )
+                parts.append(self._inline_part(image.mime_type, image.data))
         return self._generate(parts)
 
     def _parse_crop_result(
@@ -467,7 +474,7 @@ Return JSON only:
     ) -> VisionResult:
         source_by_crop = {crop.crop_index: crop.source_image_index for crop in crops}
 
-        # Gemini occasionally returns more than one possible identity for one crop.
+        # The vision model can return more than one possible identity for one crop.
         # Keep only the highest-confidence identity for each physical crop.
         best_by_crop: dict[int, dict[str, Any]] = {}
         duplicate_responses = 0
@@ -596,27 +603,151 @@ Return JSON only:
                 )
         return crops
 
+    def _select_overview_images(
+        self,
+        images: list[DownloadedImage],
+    ) -> list[DownloadedImage]:
+        if len(images) <= self.max_images_per_request:
+            return images
+
+        first = images[0]
+        remaining = [image for image in images[1:]]
+        remaining.sort(
+            key=lambda image: (self._image_area(image.data), -image.image_index),
+            reverse=True,
+        )
+        return [first, *remaining[: self.max_images_per_request - 1]]
+
+    @staticmethod
+    def _image_area(data: bytes) -> int:
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                return image.width * image.height
+        except Exception:
+            return 0
+
+    def _make_crop_contact_sheets(self, crops: list[CardCrop]) -> list[bytes]:
+        if not crops:
+            return []
+
+        sheet_count = min(self.max_images_per_request, len(crops))
+        chunks: list[list[CardCrop]] = [[] for _ in range(sheet_count)]
+        for index, crop in enumerate(crops):
+            chunks[index % sheet_count].append(crop)
+
+        sheets: list[bytes] = []
+        panel_width = 440
+        panel_height = 650
+        label_height = 44
+        columns = 2
+
+        for chunk in chunks:
+            rows = (len(chunk) + columns - 1) // columns
+            canvas = Image.new(
+                "RGB",
+                (columns * panel_width, rows * (panel_height + label_height)),
+                "white",
+            )
+            draw = ImageDraw.Draw(canvas)
+
+            for position, crop in enumerate(chunk):
+                column = position % columns
+                row = position // columns
+                x0 = column * panel_width
+                y0 = row * (panel_height + label_height)
+                draw.rectangle(
+                    (x0, y0, x0 + panel_width - 1, y0 + label_height - 1),
+                    fill="white",
+                    outline="black",
+                    width=2,
+                )
+                draw.text((x0 + 12, y0 + 12), f"Crop {crop.crop_index}", fill="black")
+
+                try:
+                    with Image.open(io.BytesIO(crop.data)) as source:
+                        source = source.convert("RGB")
+                        max_width = panel_width - 16
+                        max_height = panel_height - 16
+                        scale = min(
+                            max_width / source.width,
+                            max_height / source.height,
+                        )
+                        resized = source.resize(
+                            (
+                                max(1, int(source.width * scale)),
+                                max(1, int(source.height * scale)),
+                            ),
+                            Image.Resampling.LANCZOS,
+                        )
+                        image_x = x0 + (panel_width - resized.width) // 2
+                        image_y = y0 + label_height + (panel_height - resized.height) // 2
+                        canvas.paste(resized, (image_x, image_y))
+                except Exception as exc:  # noqa: BLE001
+                    LOGGER.warning(
+                        "Could not place crop %s on contact sheet: %s",
+                        crop.crop_index,
+                        exc,
+                    )
+
+            output = io.BytesIO()
+            canvas.save(output, format="JPEG", quality=90, optimize=True)
+            sheets.append(output.getvalue())
+
+        return sheets
+
     def _generate(self, parts: list[dict[str, Any]]) -> dict[str, Any]:
+        content: list[dict[str, Any]] = []
+        image_count = 0
+        for part in parts:
+            if "text" in part:
+                content.append({"type": "text", "text": str(part["text"])})
+                continue
+            inline = part.get("inlineData") or {}
+            if inline:
+                image_count += 1
+                mime = str(inline.get("mimeType") or "image/jpeg")
+                data = str(inline.get("data") or "")
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{data}"},
+                    }
+                )
+
+        if image_count > self.max_images_per_request:
+            raise RuntimeError(
+                f"Groq request contains {image_count} images; configured maximum is "
+                f"{self.max_images_per_request}"
+            )
+
         payload = {
-            "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {
-                "temperature": 0,
-                "responseMimeType": "application/json",
-            },
+            "model": self.model,
+            "messages": [{"role": "user", "content": content}],
+            "temperature": 0.1,
+            "top_p": 1,
+            "max_completion_tokens": 8192,
+            "response_format": {"type": "json_object"},
+            "reasoning_effort": "none",
+            "stream": False,
         }
         response = httpx.post(
             self.endpoint,
             headers={
-                "x-goog-api-key": self.api_key,
+                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
             json=payload,
             timeout=240.0,
         )
+        if response.status_code == 429:
+            detail = response.text[:1500]
+            raise VisionRateLimitError(
+                f"Groq API returned HTTP 429: {detail}"
+            )
         if response.is_error:
             detail = response.text[:1500]
             raise RuntimeError(
-                f"Gemini API returned HTTP {response.status_code}: {detail}"
+                f"Groq API returned HTTP {response.status_code}: {detail}"
             )
         data = response.json()
         return _json_object(self._extract_text(data))
@@ -642,7 +773,7 @@ Return JSON only:
                 if len(response.content) > 8_000_000:
                     raise ValueError("image is larger than 8 MB")
                 if total_raw_bytes + len(response.content) > max_raw_bytes:
-                    LOGGER.warning("Skipping image because Gemini request would be too large")
+                    LOGGER.warning("Skipping image because the image download budget would be exceeded")
                     continue
                 mime = response.headers.get("content-type", "image/jpeg").split(";")[0]
                 if mime not in {"image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"}:
@@ -657,11 +788,32 @@ Return JSON only:
                 )
                 total_raw_bytes += len(response.content)
             except Exception as exc:  # noqa: BLE001
-                LOGGER.warning("Could not download image for Gemini analysis: %s", exc)
+                LOGGER.warning("Could not download image for Groq analysis: %s", exc)
         return images
 
     @staticmethod
     def _inline_part(mime_type: str, data: bytes) -> dict[str, Any]:
+        # Resize and recompress listing photos so Groq requests remain comfortably
+        # below the per-image size limit while preserving readable card detail.
+        try:
+            with Image.open(io.BytesIO(data)) as source:
+                source = source.convert("RGB")
+                longest = max(source.size)
+                if longest > 1800:
+                    scale = 1800 / longest
+                    source = source.resize(
+                        (
+                            max(1, int(source.width * scale)),
+                            max(1, int(source.height * scale)),
+                        ),
+                        Image.Resampling.LANCZOS,
+                    )
+                output = io.BytesIO()
+                source.save(output, format="JPEG", quality=88, optimize=True)
+                mime_type = "image/jpeg"
+                data = output.getvalue()
+        except Exception:
+            pass
         return {
             "inlineData": {
                 "mimeType": mime_type,
@@ -671,14 +823,10 @@ Return JSON only:
 
     @staticmethod
     def _extract_text(data: dict[str, Any]) -> str:
-        candidates = data.get("candidates", [])
-        for candidate in candidates:
-            content = candidate.get("content", {})
-            for part in content.get("parts", []):
-                if "text" in part and part["text"]:
-                    return str(part["text"])
-        prompt_feedback = data.get("promptFeedback") or data.get("prompt_feedback")
-        raise ValueError(
-            "Gemini response did not contain text content"
-            + (f": {prompt_feedback}" if prompt_feedback else "")
-        )
+        choices = data.get("choices") or []
+        for choice in choices:
+            message = choice.get("message") or {}
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content
+        raise ValueError("Groq response did not contain text content")

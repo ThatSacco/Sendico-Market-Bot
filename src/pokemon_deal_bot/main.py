@@ -18,7 +18,7 @@ from .pricecharting import PriceChartingClient
 from .reporting import write_reports
 from .sendico import SendicoMercariScanner
 from .state import StateStore
-from .vision import LotVisionAnalyzer
+from .vision import LotVisionAnalyzer, VisionRateLimitError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,9 +52,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     target = targets[0]
 
     vision_cfg = config.raw["vision"]
-    if vision_cfg.get("enabled", True) and not config.gemini_api_key:
+    if vision_cfg.get("enabled", True) and not config.groq_api_key:
         raise RuntimeError(
-            "GEMINI_API_KEY is required to identify cards in lot images"
+            "GROQ_API_KEY is required to identify cards in lot images"
         )
 
     seller_cfg = config.raw.get("seller_verification", {})
@@ -66,6 +66,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     test_alert_limit = int(test_cfg.get("max_alerts_per_run", 3))
     ignore_seen_state = bool(test_cfg.get("ignore_seen_state", True))
     test_alerts_sent = 0
+
+    retry_cfg = config.raw.get("retry_policy", {})
+    max_retry_attempts = max(
+        1,
+        int(retry_cfg.get("max_attempts_per_listing", 3)),
+    )
 
     if test_mode:
         LOGGER.warning(
@@ -106,9 +112,10 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         ),
     )
     vision = LotVisionAnalyzer(
-        api_key=config.gemini_api_key or "",
+        api_key=config.groq_api_key or "",
         model=str(vision_cfg["model"]),
         max_images=int(vision_cfg["max_images_per_listing"]),
+        max_images_per_request=int(vision_cfg.get("max_images_per_request", 3)),
         two_pass_enabled=bool(vision_cfg.get("two_pass_enabled", True)),
         two_pass_listing_types=list(
             vision_cfg.get("two_pass_listing_types", ["lot", "collection"])
@@ -207,10 +214,18 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 try:
                     listing = await scanner.hydrate(listing)
 
-                    if state.unchanged(listing) and not (
-                        test_mode and ignore_seen_state
-                    ):
-                        LOGGER.info("Skipping unchanged listing %s", listing.code)
+                    if state.unchanged(
+                        listing,
+                        max_attempts=max_retry_attempts,
+                    ) and not (test_mode and ignore_seen_state):
+                        attempts = state.attempt_count(listing)
+                        LOGGER.info(
+                            "Skipping unchanged listing %s (attempts: %d/%d; "
+                            "already processed or retry limit reached)",
+                            listing.code,
+                            attempts,
+                            max_retry_attempts,
+                        )
                         continue
 
                     if test_mode:
@@ -375,6 +390,16 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     else:
                         outcome = "; ".join(assessment.rejection_reasons)
                     state.update(listing, alerted, outcome)
+
+                except VisionRateLimitError as exc:
+                    LOGGER.warning(
+                        "Groq rate limit reached; recording this attempt and "
+                        "stopping the run so remaining listings can resume next "
+                        "week: %s",
+                        exc,
+                    )
+                    state.update(listing, False, f"error: {exc}")
+                    break
 
                 except Exception as exc:  # noqa: BLE001 - continue other listings
                     LOGGER.exception(
