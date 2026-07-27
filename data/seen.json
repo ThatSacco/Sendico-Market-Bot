@@ -1,11 +1,92 @@
 {
   "m51902266105": {
     "url": "https://sendico.com/shop/mercari/catalog/m51902266105",
-    "fingerprint": "a74db8f60eb9c6b3a37d7642fb82274f024a43272d82442b72526be09c928059",
+    "fingerprint": "6913e017629640caf320b649b1b3fe990f52a2886590352c63e2a3a6a9469295",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 429: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197930, Requested 4276. Please try again in 15m52.992s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T22:52:01.768804+00:00"
+    "last_checked": "2026-07-27T23:21:58.083912+00:00"
+  },
+  "m59706218310": {
+    "url": "https://sendico.com/shop/mercari/catalog/m59706218310",
+    "fingerprint": "3bb362cb79f51e980d5f45b56ea17e794e8437c993f6ef2f907aa355255b3876",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 403 from model qwen/qwen3.6-27b: The model `qwen/qwen3.6-27b` is blocked at the project level. Please have a project admin enable this model in the project settings at https://console.groq.com/settings/project/limits",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:18:42.268649+00:00"
+  },
+  "m46027044105": {
+    "url": "https://sendico.com/shop/mercari/catalog/m46027044105",
+    "fingerprint": "806af26b7b7b2aa7f8cc18eb0692904a247608efd6238eb741b3748a8870e166",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 403 from model qwen/qwen3.6-27b: The model `qwen/qwen3.6-27b` is blocked at the project level. Please have a project admin enable this model in the project settings at https://console.groq.com/settings/project/limits",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:19:47.103922+00:00"
+  },
+  "m89876449615": {
+    "url": "https://sendico.com/shop/mercari/catalog/m89876449615",
+    "fingerprint": "4d4a81d2a30cb6b3e06a063caefffbed1d59526eec6e30668bffb5028e63ce7a",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:20:52.484958+00:00"
+  },
+  "m75471775610": {
+    "url": "https://sendico.com/shop/mercari/catalog/m75471775610",
+    "fingerprint": "5f47a9641006ed63c5e090eecbea0bfae73df22b1cd19a574873d93d267aedc8",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:23:02.717821+00:00"
+  },
+  "m13236704686": {
+    "url": "https://sendico.com/shop/mercari/catalog/m13236704686",
+    "fingerprint": "db998816878239331f79c866096ad20a5224c66bf5240ea3cb334e84a150c735",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:24:07.347839+00:00"
+  },
+  "m71882046877": {
+    "url": "https://sendico.com/shop/mercari/catalog/m71882046877",
+    "fingerprint": "092e1f392a2caf697be615edc828d62fd2bef56ffc160141f9a3f02664ea8c81",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:25:12.271950+00:00"
+  },
+  "m53834294064": {
+    "url": "https://sendico.com/shop/mercari/catalog/m53834294064",
+    "fingerprint": "376529e03a46cef3048d72bfc1fe71d16816fb36119b4b3b4ee0e534a2203331",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:26:17.316443+00:00"
+  },
+  "m90241316106": {
+    "url": "https://sendico.com/shop/mercari/catalog/m90241316106",
+    "fingerprint": "1019d19c216712650fd023ac0d1fd34d94ffed8b8973cdc8926c8bcc0941d25f",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:27:22.598688+00:00"
+  },
+  "m44987333069": {
+    "url": "https://sendico.com/shop/mercari/catalog/m44987333069",
+    "fingerprint": "1057a0122c535e15cd4a472d0ed80e27f7074d25167eb83fd66aa4702c0b754c",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-27T23:28:27.530277+00:00"
   }
 }
