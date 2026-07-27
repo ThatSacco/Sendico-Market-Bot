@@ -11,6 +11,7 @@ test_mode:
   enabled: true
   max_alerts_per_run: 1
   ignore_seen_state: true
+  skip_search_when_direct_urls: true
   direct_listing_urls:
     - "https://sendico.com/shop/mercari/catalog/m10381389468"
 

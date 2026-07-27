@@ -143,18 +143,43 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 for term in config.raw["sendico"]["search_terms"]
                 if str(term).strip()
             ]
-            # Searching the exact Mercari item code gives a direct-test listing
-            # the best chance of being enriched with its thumbnail and price.
-            direct_codes = [
-                url.rstrip("/").split("/")[-1] for url in direct_urls
-            ]
-            search_terms = list(
-                dict.fromkeys([*direct_codes, *configured_terms])
+
+            # A direct test URL can be hydrated from its own detail page. Skipping
+            # the category search avoids a slow Sendico category page preventing
+            # the actual test listing from being analysed.
+            skip_search_for_direct_test = bool(
+                test_mode
+                and direct_urls
+                and test_cfg.get("skip_search_when_direct_urls", True)
             )
+            if skip_search_for_direct_test:
+                search_terms: list[str] = []
+                LOGGER.info(
+                    "Direct test mode: skipping category searches and hydrating "
+                    "%d direct listing(s)",
+                    len(direct_urls),
+                )
+            else:
+                direct_codes = [
+                    url.rstrip("/").split("/")[-1] for url in direct_urls
+                ]
+                search_terms = list(
+                    dict.fromkeys([*direct_codes, *configured_terms])
+                )
 
             for term in search_terms:
                 LOGGER.info("Searching Sendico Mercari: %s", term)
-                for found_listing in await scanner.search(term):
+                try:
+                    found_results = await scanner.search(term)
+                except Exception as exc:  # noqa: BLE001 - a search must not abort a run
+                    LOGGER.warning(
+                        "Sendico search failed for %s; continuing with other "
+                        "searches/direct listings: %s",
+                        term,
+                        exc,
+                    )
+                    continue
+                for found_listing in found_results:
                     existing = candidates.get(found_listing.code)
                     if existing is None:
                         candidates[found_listing.code] = found_listing

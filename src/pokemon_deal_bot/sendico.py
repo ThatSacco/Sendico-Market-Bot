@@ -5,7 +5,7 @@ import logging
 import re
 from urllib.parse import urljoin, urlparse
 
-from playwright.async_api import Browser, Page, async_playwright
+from playwright.async_api import Browser, Page, TimeoutError as PlaywrightTimeoutError, async_playwright
 
 from .models import SendicoListing
 
@@ -81,10 +81,37 @@ class SendicoMercariScanner:
         page.set_default_timeout(int(self.config.get("page_timeout_ms", 60_000)))
         return page
 
+
+    async def _goto_resilient(self, page: Page, url: str) -> None:
+        """Navigate without requiring every Sendico resource to finish loading."""
+        timeout = int(self.config.get("page_timeout_ms", 60_000))
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+            return
+        except PlaywrightTimeoutError as exc:
+            # Sendico sometimes keeps the document load pending even though the
+            # useful HTML has arrived. If navigation committed, continue with it.
+            if page.url and page.url != "about:blank":
+                LOGGER.warning(
+                    "Sendico navigation timed out after %d ms but page committed; "
+                    "continuing: %s",
+                    timeout,
+                    url,
+                )
+                return
+            LOGGER.warning(
+                "Sendico DOM navigation timed out; retrying after first response: %s",
+                url,
+            )
+            try:
+                await page.goto(url, wait_until="commit", timeout=timeout)
+            except PlaywrightTimeoutError:
+                raise exc
+
     async def search(self, term: str) -> list[SendicoListing]:
         page = await self._new_page()
         try:
-            await page.goto(self.config["category_url"], wait_until="domcontentloaded")
+            await self._goto_resilient(page, self.config["category_url"])
             await self._dismiss_cookies(page)
             await self._submit_search(page, term)
             await page.wait_for_timeout(2500)
@@ -141,7 +168,7 @@ class SendicoMercariScanner:
     async def hydrate(self, listing: SendicoListing) -> SendicoListing:
         page = await self._new_page()
         try:
-            await page.goto(listing.url, wait_until="domcontentloaded")
+            await self._goto_resilient(page, listing.url)
             await self._dismiss_cookies(page)
             try:
                 await page.wait_for_load_state("networkidle", timeout=5_000)
@@ -292,7 +319,7 @@ class SendicoMercariScanner:
                 continue
             profile = await self._new_page()
             try:
-                await profile.goto(href, wait_until="domcontentloaded")
+                await self._goto_resilient(profile, href)
                 await profile.wait_for_timeout(1000)
                 value = parse_seller_positive_ratings(await profile.locator("body").inner_text())
                 if value is not None:
@@ -319,7 +346,7 @@ class SendicoMercariScanner:
         if search_input is None:
             # Last-resort URL query. This may need adjustment if Sendico changes its UI.
             separator = "&" if "?" in page.url else "?"
-            await page.goto(f"{page.url}{separator}search={term}", wait_until="domcontentloaded")
+            await self._goto_resilient(page, f"{page.url}{separator}search={term}")
             return
         await search_input.fill(term)
         await search_input.press("Enter")
