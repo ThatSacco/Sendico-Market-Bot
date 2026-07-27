@@ -1,11 +1,56 @@
+# The bot supports any number of active entries.
+#
+# exact_card:
+#   Requires an exact Pokemon name and printed card number.
+#
+# pokemon_general:
+#   Matches any card for the named Pokemon. accepted_sets and
+#   accepted_set_codes are optional; omit them to allow every set.
+
 cards:
   - id: ampharos_ex_xy7_027
     active: true
-    japanese_name: "デンリュウEX"
+    match_mode: exact_card
     english_name: "Ampharos EX"
+    japanese_name: "デンリュウEX"
     set_name: "Bandit Ring"
     set_code: "XY7"
     card_number: "027/081"
     rarity: "RR"
     language: "Japanese"
-    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
+    search_terms:
+      - "デンリュウEX 027/081"
+      - "デンリュウEX XY7"
+      - "Ampharos EX 027/081 Japanese"
+
+  # General-search example. Change active to true to search for any Tyranitar
+  # across the four main Neo-era sets at the same time as Ampharos EX.
+  - id: tyranitar_neo_era
+    active: false
+    match_mode: pokemon_general
+    english_names:
+      - "Tyranitar"
+      - "Dark Tyranitar"
+      - "Shining Tyranitar"
+    japanese_names:
+      - "バンギラス"
+      - "わるいバンギラス"
+      - "ひかるバンギラス"
+    language: "Japanese"
+    accepted_sets:
+      - "Neo Genesis"
+      - "Gold, Silver, to a New World..."
+      - "Neo Discovery"
+      - "Crossing the Ruins..."
+      - "Neo Revelation"
+      - "Awakening Legends"
+      - "Neo Destiny"
+      - "Darkness, and to Light..."
+    search_terms:
+      - "バンギラス 旧裏"
+      - "バンギラス neo"
+      - "わるいバンギラス"
+      - "ひかるバンギラス"
+      - "Tyranitar Neo Japanese"
+      - "Dark Tyranitar Japanese"
+      - "Shining Tyranitar Japanese"

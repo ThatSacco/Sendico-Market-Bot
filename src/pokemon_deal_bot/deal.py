@@ -22,7 +22,7 @@ def assess_deal(
     minimum_seller_ratings: int,
     minimum_target_confidence: float,
 ) -> DealAssessment:
-    """Assess a target listing without applying a minimum saving threshold.
+    """Assess a watchlist listing without applying a minimum saving threshold.
 
     Variance is PriceCharting lot value less Sendico acquisition cost. A listing
     can qualify with either a positive or negative variance; Discord displays the
@@ -45,11 +45,11 @@ def assess_deal(
             f"minimum is {minimum_seller_ratings}"
         )
     if not vision.target_present:
-        reasons.append("target card was not confirmed")
+        reasons.append("no watchlist target was confirmed")
     if vision.target_confidence < minimum_target_confidence:
-        reasons.append("target-card confidence is below threshold")
+        reasons.append("watchlist-match confidence is below threshold")
     if not any(item.card.is_target for item in priced_cards):
-        reasons.append("target card could not be priced")
+        reasons.append("watchlist target could not be priced")
     if value <= 0:
         reasons.append("no cards were priced")
 

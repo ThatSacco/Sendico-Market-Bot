@@ -1,16 +1,83 @@
 # Sendico Japanese Pokemon Deal Bot
 
-This bot searches Sendico's Mercari Pokemon listings, identifies Japanese raw cards, checks PriceCharting values, and posts qualifying results to Discord.
+This bot searches Sendico's Mercari Pokemon listings, identifies Japanese raw cards, checks PriceCharting values, and posts qualifying watchlist matches to Discord.
+
+## Watchlist modes
+
+The scanner now supports any number of active entries in `data/watchlist.yaml`.
+
+### Exact card
+
+Use `match_mode: exact_card` when the precise printed card is required.
+
+```yaml
+cards:
+  - id: ampharos_ex_xy7_027
+    active: true
+    match_mode: exact_card
+    english_name: "Ampharos EX"
+    japanese_name: "デンリュウEX"
+    set_name: "Bandit Ring"
+    set_code: "XY7"
+    card_number: "027/081"
+    language: "Japanese"
+    search_terms:
+      - "デンリュウEX 027/081"
+      - "Ampharos EX 027/081 Japanese"
+```
+
+The Pokemon name and printed card number must match. Set information is also checked when Groq can identify it.
+
+### General Pokemon
+
+Use `match_mode: pokemon_general` to accept any identified card for a Pokemon.
+
+```yaml
+cards:
+  - id: tyranitar_neo_era
+    active: true
+    match_mode: pokemon_general
+    english_names:
+      - "Tyranitar"
+    japanese_names:
+      - "バンギラス"
+    language: "Japanese"
+    accepted_sets:
+      - "Neo Discovery"
+      - "Neo Destiny"
+    search_terms:
+      - "バンギラス 旧裏"
+      - "Tyranitar Neo Japanese"
+```
+
+`accepted_sets` and `accepted_set_codes` are optional. Remove both fields to allow the Pokemon from every set. A base-name rule such as `Tyranitar` also recognizes prefixed forms such as Dark Tyranitar and Shining Tyranitar, subject to any set restrictions.
+
+## Using exact and general searches together
+
+Set `active: true` on multiple entries. The scanner combines and de-duplicates all of their `search_terms`, searches Sendico, and checks every identified card against every active rule.
+
+The included starter watchlist has:
+
+- Ampharos EX 027/081 active;
+- a Tyranitar Neo-era general-search example inactive.
+
+Change the Tyranitar entry to `active: true` to run both searches together.
+
+## Watchlist-only editing
+
+Normal search changes now require editing only:
+
+```text
+data/watchlist.yaml
+```
+
+The legacy `sendico.search_terms` list in `config.yaml` is disabled by default. Search terms are taken from each active watchlist entry. If `search_terms` is omitted, the bot creates basic terms from the configured Pokemon names and card number.
+
+Whenever the active watchlist changes, its signature changes. This allows previously scanned listings to be checked again under the new rules without deleting `data/seen.json`.
 
 ## Vision pipeline
 
-The scanner uses Groq vision with:
-
-```text
-qwen/qwen3.6-27b
-```
-
-The previous two-pass Groq overview/crop workflow has been removed. The current pipeline is:
+The scanner uses Groq vision with locally prepared card crops:
 
 ```text
 Sendico listing photos
@@ -19,15 +86,16 @@ Sendico listing photos
     -> perceptual-hash alternate-photo deduplication
     -> small JPEG contact-sheet batches
     -> Groq card identification
+    -> local watchlist matching
     -> PriceCharting
     -> Discord
 ```
 
-Overview photos and full listing descriptions are no longer sent to Groq. Every Groq request contains one compressed contact-sheet image and a short identification prompt.
+Target names and watchlist details are not included in the Groq prompt. Groq identifies the visible card, and the program applies exact/general matching locally. This avoids biasing identification and keeps prompts small.
 
 ## TPM protection
 
-The default configuration is deliberately conservative for a Groq account with an 8,000-token-per-minute limit:
+The default configuration is conservative for a limited Groq token-per-minute allowance:
 
 ```yaml
 vision:
@@ -37,23 +105,20 @@ vision:
   max_completion_tokens: 1600
 ```
 
-If Groq returns HTTP 413 because one request is too large, the batch is automatically divided into smaller batches. A one-card batch is retried once with a smaller, more compressed image. A normal HTTP 429 quota response still stops the run cleanly so unprocessed listings can resume later.
+If Groq returns HTTP 413 because one request is too large, the batch is automatically divided. A one-card batch is retried once with a smaller compressed image. A normal HTTP 429 quota response stops the run cleanly so unprocessed listings can resume later.
 
-Because batches are intentionally spaced by 65 seconds, large card lots take longer to process. The weekly workflow retains a 180-minute timeout.
+## Listing deduplication and retry limit
 
-## Local card handling
+The scanner stores listing state in `data/seen.json`.
 
-The local preprocessor:
+- Successfully processed unchanged listings are skipped.
+- Already-alerted unchanged listings are not alerted again.
+- Retryable failures receive no more than three total attempts for the same listing and watchlist signature.
+- The counter resets when the listing price, title, seller rating, images, or active watchlist changes.
 
-- detects rotated card rectangles using OpenCV contours;
-- detects aligned card grids using long horizontal and vertical border lines;
-- recognizes a full-frame single-card close-up;
-- perspective-corrects and compresses each crop;
-- uses perceptual hashes to remove alternate-photo views;
-- preserves two identical physical cards when they appear together in the same overview photo;
-- can replace an overview crop with a sharper matching close-up from another listing photo.
+## Discord alerts
 
-The rectangle and deduplication thresholds can be adjusted in `config.yaml`.
+Alerts now include a **Matched watchlist** field containing the IDs of the exact/general rules that matched the listing.
 
 ## Required GitHub secrets
 
@@ -63,54 +128,20 @@ Create these repository secrets under:
 Settings -> Secrets and variables -> Actions
 ```
 
-Required names:
-
 ```text
 GROQ_API_KEY
 DISCORD_WEBHOOK_URL
 ```
 
-The previous `GEMINI_API_KEY` secret is not used.
-
 ## Schedule
 
-The workflow runs once each week at midnight at the start of Thursday in the `Australia/Sydney` time zone.
+The workflow runs once each week at midnight at the start of Thursday in the `Australia/Sydney` time zone. Manual runs through **Actions -> Run workflow** are also allowed.
 
-Sydney alternates between AEST and AEDT. The workflow schedules both possible UTC times and uses a timezone guard so only the trigger that is actually Thursday at 00:00 in Sydney proceeds.
+## Dependencies
 
-Manual runs through **Actions -> Run workflow** are always allowed.
-
-## Current search scope
-
-The active watchlist currently contains:
-
-```text
-Victini AR 097/086 - Black Bolt sv11B
-```
-
-## Listing deduplication and retry limit
-
-The scanner stores listing state in `data/seen.json`.
-
-- Successfully processed unchanged listings are skipped.
-- Already-alerted unchanged listings are not alerted again.
-- Retryable failures receive no more than three total attempts for the same fingerprint.
-- The counter resets when the listing price, title, seller rating, or image list changes.
-
-Configure the retry limit in `config.yaml`:
-
-```yaml
-retry_policy:
-  max_attempts_per_listing: 3
-```
-
-## New dependencies
-
-The local vision stage adds:
+GitHub Actions installs all dependencies from `requirements.txt`, including:
 
 ```text
 numpy
 opencv-python-headless
 ```
-
-GitHub Actions installs them automatically from `requirements.txt`.

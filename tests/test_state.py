@@ -83,3 +83,13 @@ def test_legacy_failure_record_counts_as_first_attempt(tmp_path: Path):
 
     state.update(listing, False, "error: new failure")
     assert state.attempt_count(listing) == 2
+
+
+def test_watchlist_change_resets_listing_state(tmp_path: Path):
+    state = StateStore(tmp_path / "seen.json")
+    listing = _listing()
+
+    state.update(listing, True, "qualifies", scan_signature="watchlist-a")
+    assert state.unchanged(listing, scan_signature="watchlist-a")
+    assert not state.unchanged(listing, scan_signature="watchlist-b")
+    assert not state.was_alerted(listing, scan_signature="watchlist-b")

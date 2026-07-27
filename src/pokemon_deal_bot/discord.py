@@ -52,6 +52,20 @@ def _target_name(assessment: DealAssessment) -> str:
     return "Target card"
 
 
+
+def _matched_watchlist(assessment: DealAssessment) -> str:
+    ids = assessment.vision.matched_watchlist_ids
+    if not ids:
+        ids = list(
+            dict.fromkeys(
+                target_id
+                for card in assessment.vision.cards
+                for target_id in card.matched_watchlist_ids
+            )
+        )
+    return ", ".join(f"`{target_id}`" for target_id in ids) or "None"
+
+
 def _priced_lines(assessment: DealAssessment, limit: int = 15) -> list[str]:
     lines: list[str] = []
     for priced in sorted(
@@ -87,6 +101,7 @@ def build_embed(assessment: DealAssessment) -> dict:
     provisional = assessment.provisional_qualifies and not assessment.qualifies
     target = _target_name(assessment)
     variance = _variance_wording(assessment)
+    matched_watchlist = _matched_watchlist(assessment)
 
     if assessment.price_variance_aud > 0:
         color = 0x2ECC71
@@ -97,12 +112,12 @@ def build_embed(assessment: DealAssessment) -> dict:
 
     if provisional:
         title = f"MANUAL SELLER CHECK — {target}"
-        status = "Target found; seller rating must be verified manually"
+        status = "Watchlist match found; seller rating must be verified manually"
         seller_value = "Unverified — confirm at least 301 positive ratings before buying"
         color = 0xF1C40F
     else:
-        title = f"TARGET FOUND — {target}"
-        status = "Target listing found — review price variance"
+        title = f"WATCHLIST MATCH — {target}"
+        status = "Watchlist match found — review price variance"
         seller_value = str(listing.seller_positive_ratings or "Unverified")
 
     return {
@@ -112,6 +127,11 @@ def build_embed(assessment: DealAssessment) -> dict:
         "color": color,
         "fields": [
             {"name": "Status", "value": status, "inline": False},
+            {
+                "name": "Matched watchlist",
+                "value": matched_watchlist,
+                "inline": False,
+            },
             {
                 "name": "Mercari price",
                 "value": f"¥{listing.price_yen:,} / {money(assessment.listing_price_aud)}",
@@ -172,7 +192,7 @@ def build_embed(assessment: DealAssessment) -> dict:
         ],
         "thumbnail": {"url": listing.image_urls[0]} if listing.image_urls else None,
         "footer": {
-            "text": f"Target confidence {vision.target_confidence:.0%} • "
+            "text": f"Watchlist confidence {vision.target_confidence:.0%} • "
             f"{vision.listing_type} • no minimum variance filter"
         },
     }
@@ -245,6 +265,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
         else "Unverified"
     )
     variance = _variance_wording(assessment)
+    matched_watchlist = _matched_watchlist(assessment)
 
     embed = {
         "title": "TEST MODE — Listing analysed",
@@ -258,6 +279,11 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                     "Restrictions ignored. This confirms Sendico, Groq, pricing "
                     "and Discord reached the result stage."
                 ),
+                "inline": False,
+            },
+            {
+                "name": "Matched watchlist",
+                "value": matched_watchlist,
                 "inline": False,
             },
             {
@@ -277,7 +303,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                 "inline": True,
             },
             {
-                "name": "Target detected",
+                "name": "Watchlist match detected",
                 "value": (
                     f"{'Yes' if vision.target_present else 'No'} "
                     f"({vision.target_confidence:.0%})"

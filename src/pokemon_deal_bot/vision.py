@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import time
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -77,49 +78,144 @@ def _normalize_variant(value: Any) -> str:
     } else "normal_holo"
 
 
-def parse_vision_result(payload: dict[str, Any], target: WatchCard) -> VisionResult:
+def _compact(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return "".join(character for character in normalized if character.isalnum())
+
+
+def _number(value: str | None) -> str:
+    return re.sub(r"\s+", "", str(value or "")).casefold()
+
+
+def _name_matches(card: IdentifiedCard, target: WatchCard) -> bool:
+    card_names = [_compact(card.name_en), _compact(card.name_jp)]
+    target_names = [
+        *(_compact(value) for value in target.english_names),
+        *(_compact(value) for value in target.japanese_names),
+    ]
+    card_names = [value for value in card_names if value]
+    target_names = [value for value in target_names if value]
+    if target.match_mode == "exact_card":
+        return any(card_name == target_name for card_name in card_names for target_name in target_names)
+    # General Pokemon searches accept a base name within a prefixed/suffixed card
+    # name, e.g. Tyranitar also matches Dark Tyranitar and Shining Tyranitar.
+    return any(
+        card_name == target_name
+        or target_name in card_name
+        or card_name in target_name
+        for card_name in card_names
+        for target_name in target_names
+    )
+
+
+def _set_value_matches(candidate: str | None, allowed: str) -> bool:
+    candidate_normalized = _compact(candidate)
+    allowed_normalized = _compact(allowed)
+    if not candidate_normalized or not allowed_normalized:
+        return False
+    return (
+        candidate_normalized == allowed_normalized
+        or allowed_normalized in candidate_normalized
+        or candidate_normalized in allowed_normalized
+    )
+
+
+def _set_matches(card: IdentifiedCard, target: WatchCard) -> bool:
+    if target.match_mode == "exact_card":
+        restrictions = [value for value in [target.set_code, target.set_name] if value]
+        if not restrictions:
+            return True
+        candidates = [value for value in [card.set_code, card.set_name] if value]
+        # Card number plus exact Pokemon name is still useful when Groq cannot
+        # read the set. Reject only when it supplied conflicting set information.
+        if not candidates:
+            return True
+        return any(
+            _set_value_matches(candidate, allowed)
+            for candidate in candidates
+            for allowed in restrictions
+        )
+
+    accepted_codes = list(target.accepted_set_codes)
+    accepted_sets = list(target.accepted_sets)
+    if target.set_code:
+        accepted_codes.append(target.set_code)
+    if target.set_name:
+        accepted_sets.append(target.set_name)
+    if not accepted_codes and not accepted_sets:
+        return True
+
+    if card.set_code and any(
+        _compact(card.set_code) == _compact(value) for value in accepted_codes
+    ):
+        return True
+    if card.set_name and any(
+        _set_value_matches(card.set_name, value) for value in accepted_sets
+    ):
+        return True
+    return False
+
+
+def _target_matches_card(card: IdentifiedCard, target: WatchCard) -> bool:
+    if target.language and _compact(card.language) != _compact(target.language):
+        return False
+    if not _name_matches(card, target):
+        return False
+    if target.match_mode == "exact_card" and _number(card.card_number) != _number(target.card_number):
+        return False
+    return _set_matches(card, target)
+
+
+def parse_vision_result(
+    payload: dict[str, Any],
+    targets: list[WatchCard] | WatchCard,
+) -> VisionResult:
+    target_list = targets if isinstance(targets, list) else [targets]
     cards: list[IdentifiedCard] = []
-    target_number = target.card_number.replace(" ", "").lower()
     for raw in payload.get("cards", []):
         number = str(raw.get("card_number") or "").strip()
         if not number:
             continue
-        language = str(raw.get("language") or "Japanese")
-        raw_name = str(raw.get("name_en") or "").strip().lower()
-        raw_set_code = str(raw.get("set_code") or "").strip().lower()
-        is_target = (
-            number.replace(" ", "").lower() == target_number
-            and target.english_name.lower() in raw_name
-            and (not raw_set_code or raw_set_code == target.set_code.lower())
+        card = IdentifiedCard(
+            name_en=str(raw.get("name_en") or "Unknown").strip(),
+            name_jp=(str(raw.get("name_jp")).strip() if raw.get("name_jp") else None),
+            set_name=(str(raw.get("set_name")).strip() if raw.get("set_name") else None),
+            set_code=(str(raw.get("set_code")).strip() if raw.get("set_code") else None),
+            card_number=number,
+            rarity=(str(raw.get("rarity")).strip() if raw.get("rarity") else None),
+            language=str(raw.get("language") or "Japanese"),
+            quantity=max(1, int(raw.get("quantity") or 1)),
+            confidence=_clamp_confidence(raw.get("confidence")),
+            evidence_image_indexes=[
+                int(value)
+                for value in raw.get("evidence_image_indexes", [])
+                if str(value).isdigit()
+            ],
+            condition=str(raw.get("condition") or "unknown"),
+            variant=_normalize_variant(raw.get("variant")),
         )
-        cards.append(
-            IdentifiedCard(
-                name_en=str(raw.get("name_en") or "Unknown").strip(),
-                name_jp=(str(raw.get("name_jp")).strip() if raw.get("name_jp") else None),
-                set_name=(str(raw.get("set_name")).strip() if raw.get("set_name") else None),
-                set_code=(str(raw.get("set_code")).strip() if raw.get("set_code") else None),
-                card_number=number,
-                rarity=(str(raw.get("rarity")).strip() if raw.get("rarity") else None),
-                language=language,
-                quantity=max(1, int(raw.get("quantity") or 1)),
-                confidence=_clamp_confidence(raw.get("confidence")),
-                evidence_image_indexes=[
-                    int(value)
-                    for value in raw.get("evidence_image_indexes", [])
-                    if str(value).isdigit()
-                ],
-                condition=str(raw.get("condition") or "unknown"),
-                variant=_normalize_variant(raw.get("variant")),
-                is_target=is_target,
-            )
+        card.matched_watchlist_ids = [
+            target.id for target in target_list if _target_matches_card(card, target)
+        ]
+        card.is_target = bool(card.matched_watchlist_ids)
+        cards.append(card)
+
+    matched_ids = list(
+        dict.fromkeys(
+            target_id
+            for card in cards
+            for target_id in card.matched_watchlist_ids
         )
+    )
+    target_cards = [card for card in cards if card.is_target]
     return VisionResult(
         listing_type=str(payload.get("listing_type") or "unknown"),
-        target_present=bool(payload.get("target_present")),
-        target_confidence=_clamp_confidence(payload.get("target_confidence")),
+        target_present=bool(target_cards),
+        target_confidence=max([card.confidence for card in target_cards] + [0.0]),
         cards=cards,
         unidentified_card_count=max(0, int(payload.get("unidentified_card_count") or 0)),
         notes=[str(note) for note in payload.get("notes", [])],
+        matched_watchlist_ids=matched_ids,
     )
 
 
@@ -134,6 +230,11 @@ def _merge_cards(cards: list[IdentifiedCard]) -> list[IdentifiedCard]:
         existing.quantity += card.quantity
         existing.confidence = max(existing.confidence, card.confidence)
         existing.is_target = existing.is_target or card.is_target
+        existing.matched_watchlist_ids = list(
+            dict.fromkeys(
+                [*existing.matched_watchlist_ids, *card.matched_watchlist_ids]
+            )
+        )
         existing.evidence_image_indexes = sorted(
             set(existing.evidence_image_indexes + card.evidence_image_indexes)
         )
@@ -190,7 +291,7 @@ class LotVisionAnalyzer:
             crop_padding_percent=crop_padding_percent,
         )
 
-    def analyze(self, listing: SendicoListing, target: WatchCard) -> VisionResult:
+    def analyze(self, listing: SendicoListing, targets: list[WatchCard]) -> VisionResult:
         downloaded = self._download_images(listing.image_urls[: self.max_images])
         if not downloaded:
             raise RuntimeError("No listing images could be downloaded for Groq analysis")
@@ -227,7 +328,7 @@ class LotVisionAnalyzer:
             )
             batch_results, request_count = self._identify_with_size_fallback(
                 listing,
-                target,
+                targets,
                 batch,
             )
             completed_requests += request_count
@@ -236,6 +337,13 @@ class LotVisionAnalyzer:
                 unidentified += batch_result.unidentified_count
 
         merged = _merge_cards(identified)
+        matched_ids = list(
+            dict.fromkeys(
+                target_id
+                for card in merged
+                for target_id in card.matched_watchlist_ids
+            )
+        )
         target_cards = [card for card in merged if card.is_target]
         if len(crops) == 1:
             listing_type = "single"
@@ -253,21 +361,23 @@ class LotVisionAnalyzer:
             notes=[
                 f"Local OpenCV preprocessing isolated {len(crops)} unique physical card crop(s).",
                 f"Groq identification used {completed_requests} small single-image request(s) across {len(batches)} planned batch(es).",
+                "Watchlist matching was applied locally after identification; target details were not added to the Groq prompt.",
                 "Alternate listing-photo duplicates were removed locally before Groq identification.",
             ],
+            matched_watchlist_ids=matched_ids,
         )
 
     def _identify_with_size_fallback(
         self,
         listing: SendicoListing,
-        target: WatchCard,
+        targets: list[WatchCard],
         crops: list[CardCrop],
         *,
         compact: bool = False,
     ) -> tuple[list[_BatchResult], int]:
         try:
-            payload = self._request_batch(listing, target, crops, compact=compact)
-            return [self._parse_batch_result(payload, target, crops)], 1
+            payload = self._request_batch(listing, crops, compact=compact)
+            return [self._parse_batch_result(payload, targets, crops)], 1
         except VisionRequestTooLargeError:
             if len(crops) > 1:
                 midpoint = len(crops) // 2
@@ -279,13 +389,13 @@ class LotVisionAnalyzer:
                 )
                 left_results, left_count = self._identify_with_size_fallback(
                     listing,
-                    target,
+                    targets,
                     crops[:midpoint],
                     compact=True,
                 )
                 right_results, right_count = self._identify_with_size_fallback(
                     listing,
-                    target,
+                    targets,
                     crops[midpoint:],
                     compact=True,
                 )
@@ -296,7 +406,7 @@ class LotVisionAnalyzer:
                 )
                 return self._identify_with_size_fallback(
                     listing,
-                    target,
+                    targets,
                     crops,
                     compact=True,
                 )
@@ -307,7 +417,6 @@ class LotVisionAnalyzer:
     def _request_batch(
         self,
         listing: SendicoListing,
-        target: WatchCard,
         crops: list[CardCrop],
         *,
         compact: bool,
@@ -321,8 +430,6 @@ class LotVisionAnalyzer:
             "Do not guess. Default variant to normal_holo. Use poke_ball, master_ball, "
             "reverse_holo or other only when that special pattern is clearly visible. "
             f"Listing title: {listing.title[:300]}\n"
-            f"Target reference: {target.english_name} / {target.japanese_name}, "
-            f"{target.set_code} {target.card_number}.\n"
             f"Panel indexes in this request: {crop_indexes}.\n"
             "Return JSON only in this shape: "
             '{"cards":[{"crop_index":1,"name_en":"","name_jp":null,'
@@ -339,7 +446,7 @@ class LotVisionAnalyzer:
     def _parse_batch_result(
         self,
         payload: dict[str, Any],
-        target: WatchCard,
+        targets: list[WatchCard],
         crops: list[CardCrop],
     ) -> _BatchResult:
         source_by_crop = {
@@ -375,8 +482,8 @@ class LotVisionAnalyzer:
             if str(value).isdigit() and int(value) in source_by_crop
         }
         recognized_indexes = {
-            int(item.get("crop_index") or 0)
-            for item in best_by_crop.values()
+            crop_index
+            for crop_index, item in best_by_crop.items()
             if str(item.get("card_number") or "").strip()
         }
         all_indexes = set(source_by_crop)
@@ -384,13 +491,11 @@ class LotVisionAnalyzer:
 
         normalized = {
             "listing_type": "lot",
-            "target_present": False,
-            "target_confidence": 0.0,
             "cards": normalized_cards,
             "unidentified_card_count": len(unrecognized),
             "notes": [],
         }
-        result = parse_vision_result(normalized, target)
+        result = parse_vision_result(normalized, targets)
         return _BatchResult(
             cards=result.cards,
             unidentified_count=result.unidentified_card_count,

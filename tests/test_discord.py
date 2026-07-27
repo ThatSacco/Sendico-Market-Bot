@@ -68,3 +68,49 @@ def test_test_embed_shows_normal_holo_variant_label():
     embed = build_test_embed(assessment)
     prices = next(field for field in embed["fields"] if field["name"].startswith("Cards matched"))
     assert "Normal/Holo" in prices["value"]
+
+
+def test_test_embed_lists_matched_watchlist_ids():
+    from pokemon_deal_bot.models import IdentifiedCard
+
+    listing = SendicoListing(
+        code="m3",
+        url="https://example.test/m3",
+        title="Tyranitar test",
+        price_yen=1000,
+    )
+    card = IdentifiedCard(
+        name_en="Tyranitar",
+        name_jp="バンギラス",
+        set_name="Neo Discovery",
+        set_code=None,
+        card_number="12/75",
+        rarity="Rare",
+        language="Japanese",
+        quantity=1,
+        confidence=0.98,
+        is_target=True,
+        matched_watchlist_ids=["tyranitar_neo_era"],
+    )
+    assessment = DealAssessment(
+        listing=listing,
+        vision=VisionResult(
+            "single",
+            True,
+            0.98,
+            [card],
+            0,
+            matched_watchlist_ids=["tyranitar_neo_era"],
+        ),
+        priced_cards=[],
+        acquisition_cost_aud=18.0,
+        listing_price_aud=10.0,
+        sendico_fee_aud=8.0,
+        total_identified_value_aud=0.0,
+        price_variance_aud=-18.0,
+        price_variance_percent=-100.0,
+        qualifies=False,
+    )
+    embed = build_test_embed(assessment)
+    field = next(item for item in embed["fields"] if item["name"] == "Matched watchlist")
+    assert "tyranitar_neo_era" in field["value"]

@@ -38,11 +38,11 @@ sendico:
   stable_scroll_rounds_before_stop: 3
   scroll_pause_ms: 1500
 
-  search_terms:
-    - "ビクティニ AR まとめ売り"
-    - "ビクティニ ポケモンカード セット"
-    - "ポケモンカード まとめ売り ビクティニ"
-    - "ビクティニ 097/086"
+  # Search terms now live in data/watchlist.yaml so adding or removing a
+  # target normally requires editing only that file. Set this to true only if
+  # you deliberately want to append the legacy terms below.
+  use_legacy_config_search_terms: false
+  search_terms: []
 
 vision:
   enabled: true

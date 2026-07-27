@@ -324,7 +324,6 @@ def test_listing_description_is_not_sent_to_groq(monkeypatch):
     )
     analyzer._request_batch(
         listing,
-        _target(),
         [CardCrop(1, 1, "image/jpeg", _single_card_jpeg())],
         compact=False,
     )
@@ -408,7 +407,7 @@ def test_oversized_batch_is_split_automatically(monkeypatch):
     )
     calls = []
 
-    def fake_request(listing, target, crops, *, compact):
+    def fake_request(listing, crops, *, compact):
         calls.append((len(crops), compact))
         if len(crops) > 1:
             raise VisionRequestTooLargeError("too large")
@@ -431,3 +430,94 @@ def test_oversized_batch_is_split_automatically(monkeypatch):
     assert len(results) == 4
     assert calls[0] == (4, False)
     assert all(size == 1 for size, _ in calls if size == 1)
+
+
+def _tyranitar_general() -> WatchCard:
+    return WatchCard(
+        id="tyranitar_neo",
+        active=True,
+        match_mode="pokemon_general",
+        english_names=["Tyranitar"],
+        japanese_names=["バンギラス"],
+        accepted_sets=["Neo Discovery", "Neo Destiny"],
+    )
+
+
+def test_multiple_watchlist_modes_match_exact_and_general_cards():
+    ampharos = WatchCard(
+        id="ampharos_exact",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        japanese_name="デンリュウEX",
+        set_name="Bandit Ring",
+        set_code="XY7",
+        card_number="027/081",
+    )
+    result = parse_vision_result(
+        {
+            "cards": [
+                {
+                    "name_en": "Ampharos EX",
+                    "name_jp": "デンリュウEX",
+                    "set_name": "Bandit Ring",
+                    "set_code": "XY7",
+                    "card_number": "027/081",
+                    "language": "Japanese",
+                    "confidence": 0.99,
+                },
+                {
+                    "name_en": "Shining Tyranitar",
+                    "name_jp": "ひかるバンギラス",
+                    "set_name": "Neo Destiny",
+                    "card_number": "113/105",
+                    "language": "Japanese",
+                    "confidence": 0.97,
+                },
+            ]
+        },
+        [ampharos, _tyranitar_general()],
+    )
+    assert result.target_present
+    assert result.matched_watchlist_ids == ["ampharos_exact", "tyranitar_neo"]
+    assert result.cards[0].matched_watchlist_ids == ["ampharos_exact"]
+    assert result.cards[1].matched_watchlist_ids == ["tyranitar_neo"]
+
+
+def test_general_pokemon_set_restriction_rejects_later_set():
+    result = parse_vision_result(
+        {
+            "cards": [
+                {
+                    "name_en": "Tyranitar",
+                    "name_jp": "バンギラス",
+                    "set_name": "Expedition Base Set",
+                    "card_number": "66/165",
+                    "language": "Japanese",
+                    "confidence": 0.99,
+                }
+            ]
+        },
+        [_tyranitar_general()],
+    )
+    assert not result.target_present
+    assert result.cards[0].matched_watchlist_ids == []
+
+
+def test_general_base_name_matches_dark_or_shining_prefix():
+    result = parse_vision_result(
+        {
+            "cards": [
+                {
+                    "name_en": "Dark Tyranitar",
+                    "name_jp": "わるいバンギラス",
+                    "set_name": "Neo Destiny",
+                    "card_number": "11/105",
+                    "language": "Japanese",
+                    "confidence": 0.96,
+                }
+            ]
+        },
+        [_tyranitar_general()],
+    )
+    assert result.target_present
+    assert result.cards[0].matched_watchlist_ids == ["tyranitar_neo"]

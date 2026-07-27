@@ -4,7 +4,12 @@ import argparse
 import asyncio
 import logging
 
-from .config import load_config, load_watchlist
+from .config import (
+    load_config,
+    load_watchlist,
+    watchlist_search_terms,
+    watchlist_signature,
+)
 from .deal import assess_deal
 from .discord import (
     send_discord,
@@ -47,9 +52,13 @@ def _merge_listing(existing: SendicoListing, found: SendicoListing) -> SendicoLi
 async def run(config_path: str, dry_run: bool = False) -> int:
     config = load_config(config_path)
     targets = load_watchlist(config)
-    if len(targets) != 1:
-        raise RuntimeError("This MVP expects exactly one active watchlist card")
-    target = targets[0]
+    targets_by_id = {target.id: target for target in targets}
+    scan_signature = watchlist_signature(targets)
+    LOGGER.info(
+        "Loaded %d active watchlist rule(s): %s",
+        len(targets),
+        ", ".join(f"{target.id} ({target.match_mode})" for target in targets),
+    )
 
     vision_cfg = config.raw["vision"]
     if vision_cfg.get("enabled", True) and not config.groq_api_key:
@@ -179,11 +188,24 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 )
                 LOGGER.info("Queued direct test listing: %s", direct_url)
 
-            configured_terms = [
-                str(term).strip()
-                for term in config.raw["sendico"]["search_terms"]
-                if str(term).strip()
-            ]
+            configured_terms = watchlist_search_terms(targets)
+            if bool(config.raw["sendico"].get("use_legacy_config_search_terms", False)):
+                configured_terms = list(
+                    dict.fromkeys(
+                        [
+                            *configured_terms,
+                            *(
+                                str(term).strip()
+                                for term in config.raw["sendico"].get("search_terms", [])
+                                if str(term).strip()
+                            ),
+                        ]
+                    )
+                )
+            if not configured_terms and not direct_urls:
+                raise RuntimeError(
+                    "No Sendico search terms were produced by the active watchlist"
+                )
 
             # A direct test URL can be hydrated from its own detail page. Skipping
             # the category search avoids a slow Sendico category page preventing
@@ -245,8 +267,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     if state.unchanged(
                         listing,
                         max_attempts=max_retry_attempts,
+                        scan_signature=scan_signature,
                     ) and not (test_mode and ignore_seen_state):
-                        attempts = state.attempt_count(listing)
+                        attempts = state.attempt_count(listing, scan_signature)
                         LOGGER.info(
                             "Skipping unchanged listing %s (attempts: %d/%d; "
                             "already processed or retry limit reached)",
@@ -274,6 +297,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                                 listing,
                                 False,
                                 "seller rating unverified",
+                                scan_signature,
                             )
                             continue
 
@@ -292,13 +316,13 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                                 "below threshold"
                             )
                             LOGGER.info("Rejecting %s: %s", listing.code, outcome)
-                            state.update(listing, False, outcome)
+                            state.update(listing, False, outcome, scan_signature)
                             continue
 
                     vision_result = await asyncio.to_thread(
                         vision.analyze,
                         listing,
-                        target,
+                        targets,
                     )
 
                     raw_eligible = [
@@ -323,10 +347,23 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     ]
                     priced = []
                     for card in eligible_cards:
+                        matched_targets = [
+                            targets_by_id[target_id]
+                            for target_id in card.matched_watchlist_ids
+                            if target_id in targets_by_id
+                        ]
+                        direct_target = next(
+                            (
+                                target
+                                for target in matched_targets
+                                if target.pricecharting_url
+                            ),
+                            None,
+                        )
                         result = await asyncio.to_thread(
                             price_client.price_card,
                             card,
-                            target,
+                            direct_target,
                         )
                         if result:
                             priced.append(result)
@@ -373,14 +410,22 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             )
                             test_alerts_sent += 1
 
-                        state.update(listing, False, "test mode analysed")
+                        state.update(
+                            listing,
+                            False,
+                            "test mode analysed",
+                            scan_signature,
+                        )
                         continue
 
                     alert_eligible = assessment.qualifies or (
                         assessment.provisional_qualifies and alert_provisional
                     )
                     alerted = False
-                    if alert_eligible and not state.was_alerted(listing):
+                    if alert_eligible and not state.was_alerted(
+                        listing,
+                        scan_signature,
+                    ):
                         alert_kind = (
                             "qualifying" if assessment.qualifies else "provisional"
                         )
@@ -417,7 +462,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         )
                     else:
                         outcome = "; ".join(assessment.rejection_reasons)
-                    state.update(listing, alerted, outcome)
+                    state.update(
+                        listing,
+                        alerted,
+                        outcome,
+                        scan_signature,
+                    )
 
                 except VisionRateLimitError as exc:
                     LOGGER.warning(
@@ -426,7 +476,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         "week: %s",
                         exc,
                     )
-                    state.update(listing, False, f"error: {exc}")
+                    state.update(
+                        listing,
+                        False,
+                        f"error: {exc}",
+                        scan_signature,
+                    )
                     break
 
                 except Exception as exc:  # noqa: BLE001 - continue other listings
@@ -460,7 +515,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                                 "Could not send diagnostic error to Discord"
                             )
 
-                    state.update(listing, False, f"error: {exc}")
+                    state.update(
+                        listing,
+                        False,
+                        f"error: {exc}",
+                        scan_signature,
+                    )
     finally:
         price_client.close()
         state.save()
