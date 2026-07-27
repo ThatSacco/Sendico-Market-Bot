@@ -25,10 +25,8 @@ cards:
     pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
 
     search_terms:
-      - "デンリュウEX 027/081"
-      - "デンリュウEX XY7"
-      - "Ampharos EX 027/081 Japanese"
-
+      - "デンリュウEX
+      
   # General-search example. Change active to true to search for any Tyranitar
   # across the four main Neo-era sets at the same time as Ampharos EX.
   - id: tyranitar_neo_era
