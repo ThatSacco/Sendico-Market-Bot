@@ -74,10 +74,15 @@ def _priced_lines(assessment: DealAssessment, limit: int = 15) -> list[str]:
         reverse=True,
     )[:limit]:
         card = priced.card
+        source_link = (
+            f" · [PriceCharting]({priced.source_url})"
+            if priced.source_url.startswith(("http://", "https://"))
+            else ""
+        )
         lines.append(
             f"• {card.quantity}× **{card.name_en} {card.card_number} "
             f"[{_variant_label(card.variant)}]** — {money(priced.total_aud)} "
-            f"({priced.match_confidence:.0%} price match)"
+            f"({priced.match_confidence:.0%} price match){source_link}"
         )
     if len(assessment.priced_cards) > limit:
         lines.append(

@@ -84,3 +84,55 @@ def test_watchlist_signature_changes_when_rule_changes():
         card_number="028/081",
     )
     assert watchlist_signature([first]) != watchlist_signature([second])
+
+
+def test_exact_card_accepts_pricecharting_product_url():
+    url = (
+        "https://www.pricecharting.com/game/"
+        "pokemon-japanese-bandit-ring/ampharos-ex-27"
+    )
+    card = WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        card_number="027/081",
+        pricecharting_url=f"  {url}  ",
+    )
+    assert card.pricecharting_url == url
+
+
+def test_general_rule_rejects_direct_pricecharting_url():
+    with pytest.raises(ValueError, match="only with match_mode 'exact_card'"):
+        WatchCard(
+            id="tyranitar",
+            match_mode="pokemon_general",
+            english_name="Tyranitar",
+            pricecharting_url=(
+                "https://www.pricecharting.com/game/"
+                "pokemon-japanese-neo-discovery/tyranitar-12"
+            ),
+        )
+
+
+def test_watchlist_rejects_non_pricecharting_reference_url():
+    with pytest.raises(ValueError, match="invalid pricecharting_url"):
+        WatchCard(
+            id="ampharos",
+            match_mode="exact_card",
+            english_name="Ampharos EX",
+            card_number="027/081",
+            pricecharting_url="https://example.com/game/ampharos-ex-27",
+        )
+
+
+def test_watchlist_rejects_pricecharting_search_page_as_direct_reference():
+    with pytest.raises(ValueError, match="must point to a PriceCharting /game/"):
+        WatchCard(
+            id="ampharos",
+            match_mode="exact_card",
+            english_name="Ampharos EX",
+            card_number="027/081",
+            pricecharting_url=(
+                "https://www.pricecharting.com/search-products?q=ampharos"
+            ),
+        )

@@ -1,17 +1,27 @@
-# Multi-watchlist exact/general update
+# Exact PriceCharting reference update
 
 Upload the contents of this folder to the root of the GitHub repository and replace matching files.
 
 ## What this update adds
 
-- Multiple active watchlist entries at the same time.
-- `match_mode: exact_card` for a precise card number.
-- `match_mode: pokemon_general` for any card of a Pokemon.
-- Optional set restrictions for general searches.
-- Sendico search terms stored in `data/watchlist.yaml`.
-- Local matching after Groq identifies cards.
-- Discord displays the matching watchlist IDs.
-- A watchlist edit resets deduplication for the new rules without deleting scan history.
+- Optional `pricecharting_url` support for `match_mode: exact_card` entries.
+- The watchlist product page is checked before a normal PriceCharting search.
+- The page identity is still verified against the identified name, number, set and variant.
+- Automatic fallback to the normal PriceCharting search if the direct page is unavailable or does not match.
+- Direct references are restricted to PriceCharting `/game/` product pages.
+- Direct references are rejected for `pokemon_general` rules because those can match many cards.
+- Discord pricing lines now include a clickable PriceCharting source link.
+- All previous multi-watchlist, deduplication, retry and Thursday-midnight Sydney behaviour remains in place.
+
+## Included example
+
+The active Ampharos EX entry in `data/watchlist.yaml` now contains:
+
+```yaml
+pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
+```
+
+For future exact-card searches, copy the full PriceCharting product page URL into the relevant watchlist entry. The field is optional; if omitted, the bot performs its normal PriceCharting search.
 
 ## Important files
 
@@ -19,23 +29,13 @@ Replace all included files, especially:
 
 ```text
 data/watchlist.yaml
-config.yaml
 src/pokemon_deal_bot/models.py
-src/pokemon_deal_bot/config.py
-src/pokemon_deal_bot/main.py
-src/pokemon_deal_bot/vision.py
-src/pokemon_deal_bot/state.py
-src/pokemon_deal_bot/deal.py
+src/pokemon_deal_bot/pricecharting.py
 src/pokemon_deal_bot/discord.py
+README.md
 ```
 
-The included `data/watchlist.yaml` has Ampharos EX active and a disabled Tyranitar Neo-era example. Change the Tyranitar entry to:
-
-```yaml
-active: true
-```
-
-to test both an exact card and a general Pokemon search together.
+The package is a full replacement based on the latest exact/general multi-watchlist version, so uploading all included files is recommended.
 
 ## Preserve scan history
 
@@ -47,14 +47,14 @@ data/price_cache.json
 reports/
 ```
 
-Those files are not included in this package. The new watchlist signature automatically allows old listings to be reassessed when your active rules change.
+Those files are not included in this package. Editing a watchlist URL changes the active watchlist signature, allowing existing listings to be reassessed under the new pricing reference.
 
 ## Upload process
 
 1. Extract this ZIP.
 2. Upload all extracted contents to the repository root.
 3. Allow GitHub to replace matching files.
-4. Confirm `data/watchlist.yaml` exists.
+4. Keep the existing `data/seen.json`, `data/price_cache.json`, and `reports/` files.
 5. Commit to `main`.
 6. Open **Actions** and run the scanner manually once.
 

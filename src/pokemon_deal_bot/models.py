@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 
 @dataclass(slots=True)
@@ -46,6 +47,11 @@ class WatchCard:
         self.accepted_sets = _clean_list(self.accepted_sets)
         self.accepted_set_codes = _clean_list(self.accepted_set_codes)
         self.search_terms = _clean_list(self.search_terms)
+        self.pricecharting_url = _clean_pricecharting_url(
+            self.pricecharting_url,
+            entry_id=self.id,
+            match_mode=self.match_mode,
+        )
 
         if self.japanese_name and self.japanese_name.strip() not in self.japanese_names:
             self.japanese_names.insert(0, self.japanese_name.strip())
@@ -75,6 +81,45 @@ class WatchCard:
 
 def _clean_list(values: list[str] | None) -> list[str]:
     return list(dict.fromkeys(str(value).strip() for value in (values or []) if str(value).strip()))
+
+
+def _clean_pricecharting_url(
+    value: str | None,
+    *,
+    entry_id: str,
+    match_mode: str,
+) -> str | None:
+    """Validate an optional direct PriceCharting product-page reference.
+
+    The URL is intentionally restricted to PriceCharting product pages because
+    the scanner fetches it automatically. Direct references are only safe for
+    exact-card rules; general Pokemon rules can match many different products.
+    """
+    url = str(value or "").strip()
+    if not url:
+        return None
+    if match_mode != "exact_card":
+        raise ValueError(
+            f"Watchlist entry {entry_id!r} may use pricecharting_url only with "
+            "match_mode 'exact_card'"
+        )
+
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"http", "https"} or hostname not in {
+        "pricecharting.com",
+        "www.pricecharting.com",
+    }:
+        raise ValueError(
+            f"Watchlist entry {entry_id!r} has an invalid pricecharting_url; "
+            "use a PriceCharting product-page URL"
+        )
+    if not parsed.path.startswith("/game/"):
+        raise ValueError(
+            f"Watchlist entry {entry_id!r} pricecharting_url must point to a "
+            "PriceCharting /game/ product page"
+        )
+    return url
 
 
 @dataclass(slots=True)

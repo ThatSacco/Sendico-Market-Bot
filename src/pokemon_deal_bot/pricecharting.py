@@ -239,8 +239,59 @@ class PriceChartingClient:
                 match_confidence=1.0,
             )
 
-        direct_url = target.pricecharting_url if target and card.is_target else None
-        candidate = (direct_url, 1.0) if direct_url else self._find_product_url(card)
+        direct_url = None
+        if (
+            target is not None
+            and target.match_mode == "exact_card"
+            and target.pricecharting_url
+            and card.is_target
+            and target.id in card.matched_watchlist_ids
+        ):
+            direct_url = target.pricecharting_url
+
+        # A watchlist product URL is preferred, but it is never trusted blindly.
+        # The fetched page title and URL must still match the identified card at
+        # the normal confidence threshold. If the page is unavailable or does not
+        # match, the standard PriceCharting search remains as a safe fallback.
+        if direct_url:
+            direct_data = self._fetch_product(direct_url)
+            if direct_data:
+                usd, title = direct_data
+                # The page title must independently identify the card. The URL
+                # is user-supplied, so allowing it to prove the identity would
+                # make a wrong pasted link appear valid.
+                confidence = identity_match_confidence(card, title)
+                if confidence >= self.minimum_match_confidence:
+                    LOGGER.info(
+                        "Used watchlist PriceCharting reference for %s: %s",
+                        card.key,
+                        direct_url,
+                    )
+                    return CardPrice(
+                        card=card,
+                        unit_price_usd=usd,
+                        unit_price_aud=usd * self.fx.usd_to_aud,
+                        source_url=direct_url,
+                        source_title=title,
+                        match_confidence=confidence,
+                    )
+                LOGGER.warning(
+                    "Watchlist PriceCharting reference did not match %s at %.0f%%: "
+                    "%s (%.1f%%); falling back to search",
+                    card.key,
+                    self.minimum_match_confidence * 100,
+                    direct_url,
+                    confidence * 100,
+                )
+            else:
+                LOGGER.warning(
+                    "Watchlist PriceCharting reference could not be fetched for %s: "
+                    "%s; falling back to search",
+                    card.key,
+                    direct_url,
+                )
+
+        candidate = self._find_product_url(card)
         if not candidate or not candidate[0]:
             return None
         url, search_confidence = candidate
@@ -249,23 +300,19 @@ class PriceChartingClient:
         if not data:
             return None
         usd, title = data
-
-        if direct_url:
-            confidence = 1.0
-        else:
-            confidence = min(
-                search_confidence,
-                identity_match_confidence(card, f"{title} {url}"),
+        confidence = min(
+            search_confidence,
+            identity_match_confidence(card, f"{title} {url}"),
+        )
+        if confidence < self.minimum_match_confidence:
+            LOGGER.warning(
+                "Rejected PriceCharting match below %.0f%% for %s: %s (%.1f%%)",
+                self.minimum_match_confidence * 100,
+                card.key,
+                title,
+                confidence * 100,
             )
-            if confidence < self.minimum_match_confidence:
-                LOGGER.warning(
-                    "Rejected PriceCharting match below %.0f%% for %s: %s (%.1f%%)",
-                    self.minimum_match_confidence * 100,
-                    card.key,
-                    title,
-                    confidence * 100,
-                )
-                return None
+            return None
 
         return CardPrice(
             card=card,

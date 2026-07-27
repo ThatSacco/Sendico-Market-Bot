@@ -18,6 +18,12 @@ cards:
     card_number: "027/081"
     rarity: "RR"
     language: "Japanese"
+
+    # Optional for exact_card entries. The bot checks this page first, verifies
+    # that its title/URL matches the identified card, and falls back to normal
+    # PriceCharting search if the page is unavailable or does not match.
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
+
     search_terms:
       - "デンリュウEX 027/081"
       - "デンリュウEX XY7"

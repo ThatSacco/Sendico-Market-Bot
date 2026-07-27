@@ -114,3 +114,59 @@ def test_test_embed_lists_matched_watchlist_ids():
     embed = build_test_embed(assessment)
     field = next(item for item in embed["fields"] if item["name"] == "Matched watchlist")
     assert "tyranitar_neo_era" in field["value"]
+
+
+def test_priced_card_includes_clickable_pricecharting_source():
+    from pokemon_deal_bot.discord import build_embed
+    from pokemon_deal_bot.models import CardPrice, IdentifiedCard
+
+    source_url = (
+        "https://www.pricecharting.com/game/"
+        "pokemon-japanese-bandit-ring/ampharos-ex-27"
+    )
+    listing = SendicoListing(
+        code="m4",
+        url="https://example.test/m4",
+        title="Ampharos test",
+        price_yen=1000,
+        seller_positive_ratings=500,
+    )
+    card = IdentifiedCard(
+        name_en="Ampharos EX",
+        name_jp="デンリュウEX",
+        set_name="Bandit Ring",
+        set_code="XY7",
+        card_number="027/081",
+        rarity="RR",
+        language="Japanese",
+        quantity=1,
+        confidence=0.99,
+        is_target=True,
+        matched_watchlist_ids=["ampharos"],
+    )
+    assessment = DealAssessment(
+        listing=listing,
+        vision=VisionResult(
+            "single",
+            True,
+            0.99,
+            [card],
+            0,
+            matched_watchlist_ids=["ampharos"],
+        ),
+        priced_cards=[CardPrice(card, 12.0, 18.0, source_url, "title", 1.0)],
+        acquisition_cost_aud=15.0,
+        listing_price_aud=7.0,
+        sendico_fee_aud=8.0,
+        total_identified_value_aud=18.0,
+        price_variance_aud=3.0,
+        price_variance_percent=20.0,
+        qualifies=True,
+    )
+
+    embed = build_embed(assessment)
+    prices = next(
+        field for field in embed["fields"]
+        if field["name"] == "Cards priced at ≥95% match"
+    )
+    assert f"[PriceCharting]({source_url})" in prices["value"]

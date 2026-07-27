@@ -21,12 +21,27 @@ cards:
     set_code: "XY7"
     card_number: "027/081"
     language: "Japanese"
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
     search_terms:
       - "デンリュウEX 027/081"
       - "Ampharos EX 027/081 Japanese"
 ```
 
 The Pokemon name and printed card number must match. Set information is also checked when Groq can identify it.
+
+### Optional exact PriceCharting reference
+
+An `exact_card` entry may include a direct PriceCharting product page:
+
+```yaml
+pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
+```
+
+The bot checks this page before doing a general PriceCharting search. It still verifies the page title and URL against the identified Pokemon name, printed number, set and finish variant. If the page is unavailable or does not meet the normal 95% identity threshold, the bot falls back to the regular PriceCharting search.
+
+For safety, the field accepts only PriceCharting `/game/` product pages and may only be used with `match_mode: exact_card`. General Pokemon searches can match many different products, so they continue to discover the precise PriceCharting page after Groq identifies each card.
+
+Discord pricing lines include a clickable PriceCharting source link.
 
 ### General Pokemon
 
