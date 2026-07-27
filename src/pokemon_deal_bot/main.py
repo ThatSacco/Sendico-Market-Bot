@@ -25,18 +25,14 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         raise RuntimeError("This MVP expects exactly one active watchlist card")
     target = targets[0]
     vision_cfg = config.raw["vision"]
-      if vision_cfg.get("enabled", True) and not config.openai_api_key:
+    if vision_cfg.get("enabled", True) and not config.openai_api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is required to identify and value all cards in lot images"
         )
 
     seller_cfg = config.raw.get("seller_verification", {})
-    analyse_unverified = bool(
-        seller_cfg.get("analyse_unverified_sellers", True)
-    )
-    alert_provisional = bool(
-        seller_cfg.get("alert_provisional_deals", True)
-    )
+    analyse_unverified = bool(seller_cfg.get("analyse_unverified_sellers", True))
+    alert_provisional = bool(seller_cfg.get("alert_provisional_deals", True))
 
     fx_cfg = config.raw["pricing"]
     fx = FxClient(
