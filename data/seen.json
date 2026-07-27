@@ -85,10 +85,10 @@
   },
   "m10381389468": {
     "url": "https://sendico.com/shop/mercari/catalog/m10381389468",
-    "fingerprint": "0a07020cd360fddcf17f03a2c7b428791ece63d450022d15999491750e93064d",
+    "fingerprint": "a05de6f5f4947f8d5e31837b8e39c234cc5fcb48ac757368e69aa5a928cc8ff7",
     "alerted_fingerprint": null,
-    "last_outcome": "test mode analysed",
-    "last_checked": "2026-07-27T04:16:25.806154+00:00"
+    "last_outcome": "error: No listing images could be downloaded for Gemini analysis",
+    "last_checked": "2026-07-27T05:26:12.511583+00:00"
   },
   "m22704933522": {
     "url": "https://sendico.com/shop/mercari/catalog/m22704933522",
