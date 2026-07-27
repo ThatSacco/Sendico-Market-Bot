@@ -7,7 +7,7 @@ import logging
 import re
 import time
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import httpx
@@ -77,6 +77,157 @@ def _normalize_variant(value: Any) -> str:
         "other",
     } else "normal_holo"
 
+
+
+_GRADING_COMPANY_ALIASES = {
+    "psa": "PSA",
+    "bgs": "BGS",
+    "beckett": "BGS",
+    "cgc": "CGC",
+    "sgc": "SGC",
+    "tag": "TAG",
+    "ace": "ACE",
+}
+
+
+def _normalize_grading_company(value: Any) -> str | None:
+    compact = re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+    return _GRADING_COMPANY_ALIASES.get(compact)
+
+
+def _normalize_grade(value: Any) -> str | None:
+    match = re.search(r"(?<!\d)(10|[1-9](?:\.5)?)(?!\d)", str(value or ""))
+    if not match:
+        return None
+    number = float(match.group(1))
+    if not 1.0 <= number <= 10.0:
+        return None
+    return str(int(number)) if number.is_integer() else f"{number:g}"
+
+
+def _listing_grade_hint(listing: SendicoListing) -> tuple[str, str] | None:
+    text = " ".join([listing.title, listing.description[:1000]])
+    match = re.search(
+        r"\b(PSA|BGS|BECKETT|CGC|SGC|TAG|ACE)\s*(?:GRADE\s*)?"
+        r"(10|[1-9](?:\.5)?)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    company = _normalize_grading_company(match.group(1))
+    grade = _normalize_grade(match.group(2))
+    return (company, grade) if company and grade else None
+
+
+def _card_mentioned_in_listing(card: IdentifiedCard, listing: SendicoListing) -> bool:
+    haystack = _compact(" ".join([listing.title, listing.description[:1000]]))
+    names = [_compact(card.name_en), _compact(card.name_jp)]
+    name_match = any(name and name in haystack for name in names)
+    numerator = _compact(card.card_number.split("/", 1)[0])
+    number_match = bool(numerator and numerator in haystack)
+    return name_match and number_match
+
+
+
+def _base_identity_key(card: IdentifiedCard) -> str:
+    return "|".join(
+        [
+            card.language.lower().strip(),
+            (card.set_code or card.set_name or "").lower().strip(),
+            card.card_number.lower().replace(" ", ""),
+            card.name_en.lower().strip(),
+            card.variant.lower().strip(),
+        ]
+    )
+
+
+def _propagate_visible_grading(
+    cards: list[IdentifiedCard],
+) -> list[IdentifiedCard]:
+    """Share one image-confirmed slab grade across duplicate crops of the card.
+
+    Local preprocessing can produce a full slab crop and a sharper inner-card
+    crop. When one crop clearly reads the slab label and the other does not, they
+    are still the same physical graded card. Conflicting visible grades are never
+    merged or propagated.
+    """
+    groups: dict[str, list[IdentifiedCard]] = {}
+    for card in cards:
+        groups.setdefault(_base_identity_key(card), []).append(card)
+
+    updated: list[IdentifiedCard] = []
+    for group in groups.values():
+        visible_grades = {
+            (card.grading_company, card.grade)
+            for card in group
+            if card.is_graded and card.grading_source == "image"
+        }
+        if len(visible_grades) != 1:
+            updated.extend(group)
+            continue
+        company, grade = next(iter(visible_grades))
+        confidence = max(
+            card.grading_confidence
+            for card in group
+            if card.is_graded and card.grading_source == "image"
+        )
+        for card in group:
+            if card.is_graded:
+                updated.append(card)
+            else:
+                updated.append(
+                    replace(
+                        card,
+                        grading_company=company,
+                        grade=grade,
+                        grading_confidence=confidence,
+                        grading_source="image_context",
+                    )
+                )
+    return updated
+
+def _apply_listing_grading_hint(
+    cards: list[IdentifiedCard],
+    listing: SendicoListing,
+) -> tuple[list[IdentifiedCard], bool]:
+    """Apply an explicit grading claim from the listing title as a fallback.
+
+    Image-confirmed grading remains preferred. The title fallback is only applied
+    to cards whose name and number are mentioned in the listing, or to the sole
+    identified target card when the listing contains only one distinct identity.
+    Discord labels title-derived grades as claimed so the slab still requires
+    manual verification.
+    """
+    hint = _listing_grade_hint(listing)
+    if not hint or not cards:
+        return cards, False
+
+    company, grade = hint
+    candidates = [card for card in cards if _card_mentioned_in_listing(card, listing)]
+    if not candidates:
+        distinct_target_keys = {card.key for card in cards if card.is_target}
+        if len(distinct_target_keys) == 1:
+            candidates = [card for card in cards if card.is_target]
+
+    candidate_ids = {id(card) for card in candidates}
+    changed = False
+    updated: list[IdentifiedCard] = []
+    for card in cards:
+        if id(card) not in candidate_ids or card.is_graded:
+            updated.append(card)
+            continue
+        updated.append(
+            replace(
+                card,
+                grading_company=company,
+                grade=grade,
+                grading_confidence=0.90,
+                grading_source="listing_title",
+            )
+        )
+        changed = True
+    return updated, changed
 
 def _compact(value: str | None) -> str:
     normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
@@ -193,6 +344,15 @@ def parse_vision_result(
             ],
             condition=str(raw.get("condition") or "unknown"),
             variant=_normalize_variant(raw.get("variant")),
+            grading_company=_normalize_grading_company(raw.get("grading_company")),
+            grade=_normalize_grade(raw.get("grade")),
+            grading_confidence=_clamp_confidence(raw.get("grading_confidence")),
+            grading_source=(
+                "image"
+                if _normalize_grading_company(raw.get("grading_company"))
+                and _normalize_grade(raw.get("grade"))
+                else None
+            ),
         )
         card.matched_watchlist_ids = [
             target.id for target in target_list if _target_matches_card(card, target)
@@ -220,25 +380,65 @@ def parse_vision_result(
 
 
 def _merge_cards(cards: list[IdentifiedCard]) -> list[IdentifiedCard]:
-    """Combine separate physical crops that identify as the same exact card."""
-    by_key: dict[str, IdentifiedCard] = {}
+    """Merge repeated identifications without counting alternate photos twice.
+
+    Sendico listings commonly show the same physical card in several photos.
+    Every local crop records its source image, so the safest quantity estimate is
+    the largest number of identical cards visible together in any single source
+    image, not the total number of times the card appears across all photos.
+
+    This still preserves a genuine quantity of two or more when identical cards
+    are visible together in one overview photo.
+    """
+    grouped: dict[str, list[IdentifiedCard]] = {}
     for card in cards:
-        existing = by_key.get(card.key)
-        if existing is None:
-            by_key[card.key] = card
-            continue
-        existing.quantity += card.quantity
-        existing.confidence = max(existing.confidence, card.confidence)
-        existing.is_target = existing.is_target or card.is_target
-        existing.matched_watchlist_ids = list(
-            dict.fromkeys(
-                [*existing.matched_watchlist_ids, *card.matched_watchlist_ids]
+        grouped.setdefault(card.key, []).append(card)
+
+    merged: list[IdentifiedCard] = []
+    for group in grouped.values():
+        best = max(group, key=lambda item: item.confidence)
+        counts_by_source: dict[int, int] = {}
+        without_source = 0
+
+        for card in group:
+            source_indexes = sorted(set(card.evidence_image_indexes))
+            if source_indexes:
+                for source_index in source_indexes:
+                    counts_by_source[source_index] = (
+                        counts_by_source.get(source_index, 0) + card.quantity
+                    )
+            else:
+                # Legacy/test payloads may not include source-image evidence.
+                without_source += card.quantity
+
+        if counts_by_source:
+            quantity = max(max(counts_by_source.values()), without_source or 0)
+        else:
+            quantity = max(1, without_source)
+
+        merged.append(
+            replace(
+                best,
+                quantity=max(1, quantity),
+                confidence=max(item.confidence for item in group),
+                is_target=any(item.is_target for item in group),
+                matched_watchlist_ids=list(
+                    dict.fromkeys(
+                        target_id
+                        for item in group
+                        for target_id in item.matched_watchlist_ids
+                    )
+                ),
+                evidence_image_indexes=sorted(
+                    {
+                        source_index
+                        for item in group
+                        for source_index in item.evidence_image_indexes
+                    }
+                ),
             )
         )
-        existing.evidence_image_indexes = sorted(
-            set(existing.evidence_image_indexes + card.evidence_image_indexes)
-        )
-    return list(by_key.values())
+    return merged
 
 
 class LotVisionAnalyzer:
@@ -336,6 +536,11 @@ class LotVisionAnalyzer:
                 identified.extend(batch_result.cards)
                 unidentified += batch_result.unidentified_count
 
+        identified = _propagate_visible_grading(identified)
+        identified, title_grade_applied = _apply_listing_grading_hint(
+            identified,
+            listing,
+        )
         merged = _merge_cards(identified)
         matched_ids = list(
             dict.fromkeys(
@@ -345,9 +550,10 @@ class LotVisionAnalyzer:
             )
         )
         target_cards = [card for card in merged if card.is_target]
-        if len(crops) == 1:
+        physical_card_count = sum(card.quantity for card in merged)
+        if physical_card_count == 1:
             listing_type = "single"
-        elif len(crops) <= 8:
+        elif physical_card_count <= 8:
             listing_type = "lot"
         else:
             listing_type = "collection"
@@ -363,6 +569,13 @@ class LotVisionAnalyzer:
                 f"Groq identification used {completed_requests} small single-image request(s) across {len(batches)} planned batch(es).",
                 "Watchlist matching was applied locally after identification; target details were not added to the Groq prompt.",
                 "Alternate listing-photo duplicates were removed locally before Groq identification.",
+                *(
+                    [
+                        "A grading company and grade were taken from the explicit listing title; verify the slab label and certification number manually."
+                    ]
+                    if title_grade_applied
+                    else []
+                ),
             ],
             matched_watchlist_ids=matched_ids,
         )
@@ -424,10 +637,14 @@ class LotVisionAnalyzer:
         sheet = self._make_contact_sheet(crops, compact=compact)
         crop_indexes = ", ".join(str(crop.crop_index) for crop in crops)
         prompt = (
-            "Identify the Japanese raw Pokemon card in each labelled panel. "
-            "Return one card at most per panel. Use the exact printed card number; "
-            "if it is unreadable or uncertain, put that panel in unrecognized_crop_indexes. "
-            "Do not guess. Default variant to normal_holo. Use poke_ball, master_ball, "
+            "Identify the Japanese Pokemon card in each labelled panel. "
+            "Return one card at most per panel. Only identify a card when its front face "
+            "and exact printed card number are readable; card backs and unreadable slab "
+            "backs must go in unrecognized_crop_indexes. Do not guess and never identify "
+            "an unreadable panel from the listing title alone. If a professional grading "
+            "slab and label are visibly present, return grading_company and grade exactly "
+            "as printed, plus grading_confidence. Otherwise use null grading fields. "
+            "Default variant to normal_holo. Use poke_ball, master_ball, "
             "reverse_holo or other only when that special pattern is clearly visible. "
             f"Listing title: {listing.title[:300]}\n"
             f"Panel indexes in this request: {crop_indexes}.\n"
@@ -435,7 +652,8 @@ class LotVisionAnalyzer:
             '{"cards":[{"crop_index":1,"name_en":"","name_jp":null,'
             '"set_name":null,"set_code":null,"card_number":"","rarity":null,'
             '"language":"Japanese","confidence":0.0,"condition":"unknown",'
-            '"variant":"normal_holo"}],"unrecognized_crop_indexes":[]}'
+            '"variant":"normal_holo","grading_company":null,"grade":null,'
+            '"grading_confidence":0.0}],"unrecognized_crop_indexes":[]}'
         )
         parts = [
             {"text": prompt},

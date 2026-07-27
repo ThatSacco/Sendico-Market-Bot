@@ -154,13 +154,42 @@ def test_explicit_master_ball_variant_is_retained():
     assert result.cards[0].variant == "master_ball"
 
 
-def test_physical_duplicate_cards_are_combined_after_identification():
+def test_identical_cards_in_same_photo_preserve_physical_quantity():
     first = _card("097/086", 0.95)
+    first.evidence_image_indexes = [1]
     second = _card("097/086", 0.97)
+    second.evidence_image_indexes = [1]
     merged = _merge_cards([first, second])
     assert len(merged) == 1
     assert merged[0].quantity == 2
     assert merged[0].confidence == 0.97
+
+
+def test_alternate_photos_of_one_card_do_not_inflate_quantity():
+    cards = []
+    for source_index in range(1, 6):
+        card = _card("097/086", 0.94 + source_index / 1000)
+        card.evidence_image_indexes = [source_index]
+        cards.append(card)
+
+    merged = _merge_cards(cards)
+    assert len(merged) == 1
+    assert merged[0].quantity == 1
+    assert merged[0].evidence_image_indexes == [1, 2, 3, 4, 5]
+
+
+def test_two_identical_cards_with_alternate_photos_stay_quantity_two():
+    first_overview = _card("097/086", 0.95)
+    first_overview.evidence_image_indexes = [1]
+    second_overview = _card("097/086", 0.96)
+    second_overview.evidence_image_indexes = [1]
+    alternate = _card("097/086", 0.99)
+    alternate.evidence_image_indexes = [2]
+
+    merged = _merge_cards([first_overview, second_overview, alternate])
+    assert len(merged) == 1
+    assert merged[0].quantity == 2
+    assert merged[0].confidence == 0.99
 
 
 def test_local_extractor_detects_four_card_grid():

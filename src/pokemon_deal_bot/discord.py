@@ -28,6 +28,17 @@ def _variant_label(variant: str) -> str:
     }.get(variant, "Normal/Holo")
 
 
+
+def _grading_label(card) -> str:
+    if not card.is_graded:
+        return "Ungraded"
+    suffix = " claimed" if card.grading_source == "listing_title" else ""
+    return f"{card.grade_label}{suffix}"
+
+
+def _card_finish_label(card) -> str:
+    return f"{_variant_label(card.variant)} · {_grading_label(card)}"
+
 def _variance_wording(assessment: DealAssessment) -> str:
     if assessment.price_variance_aud > 0:
         return (
@@ -81,8 +92,9 @@ def _priced_lines(assessment: DealAssessment, limit: int = 15) -> list[str]:
         )
         lines.append(
             f"• {card.quantity}× **{card.name_en} {card.card_number} "
-            f"[{_variant_label(card.variant)}]** — {money(priced.total_aud)} "
-            f"({priced.match_confidence:.0%} price match){source_link}"
+            f"[{_card_finish_label(card)}]** — {money(priced.total_aud)} "
+            f"({priced.match_confidence:.0%} price match; {priced.price_tier})"
+            f"{source_link}"
         )
     if len(assessment.priced_cards) > limit:
         lines.append(
@@ -185,12 +197,15 @@ def build_embed(assessment: DealAssessment) -> dict:
                     "Verify the seller has at least 301 positive ratings before purchase. "
                     "Shipping, domestic freight, GST and condition adjustments are excluded. "
                     "Premium variants are valued only when explicitly confirmed; otherwise "
-                    "Normal/Holo is assumed. Verify card identity, authenticity and condition."
+                    "Normal/Holo is assumed. Graded pricing is used only when a grading company "
+                    "and grade are detected from the slab or explicitly claimed in the listing "
+                    "title. Verify the slab, certification number, identity and authenticity."
                     if provisional
                     else "Shipping, domestic freight, GST and condition adjustments are "
                     "excluded. Premium variants are valued only when explicitly confirmed; "
-                    "otherwise Normal/Holo is assumed. Verify card identity, authenticity "
-                    "and condition."
+                    "otherwise Normal/Holo is assumed. Graded pricing is used only when a "
+                    "grading company and grade are detected or explicitly claimed. Verify "
+                    "the slab, certification number, card identity and authenticity."
                 ),
                 "inline": False,
             },
@@ -256,7 +271,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
     for card in vision.cards[:15]:
         identified_lines.append(
             f"• {card.quantity}× **{card.name_en} {card.card_number} "
-            f"[{_variant_label(card.variant)}]** ({card.confidence:.0%})"
+            f"[{_card_finish_label(card)}]** ({card.confidence:.0%})"
         )
     if len(vision.cards) > 15:
         identified_lines.append(

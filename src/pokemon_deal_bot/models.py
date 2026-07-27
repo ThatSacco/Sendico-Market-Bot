@@ -148,6 +148,10 @@ class IdentifiedCard:
     evidence_image_indexes: list[int] = field(default_factory=list)
     condition: str = "unknown"
     variant: str = "normal_holo"
+    grading_company: str | None = None
+    grade: str | None = None
+    grading_confidence: float = 0.0
+    grading_source: str | None = None
     is_target: bool = False
     matched_watchlist_ids: list[str] = field(default_factory=list)
 
@@ -160,8 +164,20 @@ class IdentifiedCard:
                 self.card_number.lower().replace(" ", ""),
                 self.name_en.lower().strip(),
                 self.variant.lower().strip(),
+                (self.grading_company or "raw").lower().strip(),
+                (self.grade or "ungraded").lower().strip(),
             ]
         )
+
+    @property
+    def is_graded(self) -> bool:
+        return bool((self.grading_company or "").strip() and (self.grade or "").strip())
+
+    @property
+    def grade_label(self) -> str:
+        if not self.is_graded:
+            return "Ungraded"
+        return f"{self.grading_company} {self.grade}".strip()
 
 
 @dataclass(slots=True)
@@ -183,6 +199,7 @@ class CardPrice:
     source_url: str
     source_title: str
     match_confidence: float
+    price_tier: str = "Ungraded"
 
     @property
     def total_aud(self) -> float:

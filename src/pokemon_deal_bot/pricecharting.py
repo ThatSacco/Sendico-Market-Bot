@@ -165,21 +165,116 @@ def strict_identity_match(card: IdentifiedCard, text: str) -> bool:
     return identity_match_confidence(card, text) >= 0.999
 
 
-def parse_ungraded_usd(html: str) -> float | None:
+def _parse_price_text(value: str | None) -> float | None:
+    if not value or value.strip() == "-":
+        return None
+    match = re.search(r"\$\s*([0-9][0-9,]*\.?[0-9]*)", value)
+    if not match:
+        return None
+    return float(match.group(1).replace(",", ""))
+
+
+def parse_price_guide_usd(html: str) -> dict[str, float]:
+    """Extract current PriceCharting guide values by condition/grade.
+
+    PriceCharting exposes a comparison table headed Ungraded, Grade 7 through
+    Grade 9.5, and PSA 10. The selectors are used first for the two most common
+    tiers, followed by a generic table parser so minor markup changes do not
+    silently force a graded slab back to the ungraded value.
+    """
     soup = BeautifulSoup(html, "html.parser")
-    text = " ".join(soup.stripped_strings)
-    patterns = [
-        re.compile(
-            r"Full Price Guide:.*?Ungraded\s*\$([0-9][0-9,]*\.?[0-9]*)",
-            re.IGNORECASE,
-        ),
-        re.compile(r"Ungraded\s*\|?\s*\$([0-9][0-9,]*\.?[0-9]*)", re.IGNORECASE),
-        re.compile(r"Loose Price.*?\$([0-9][0-9,]*\.?[0-9]*)", re.IGNORECASE),
-    ]
-    for pattern in patterns:
-        match = pattern.search(text)
-        if match:
-            return float(match.group(1).replace(",", ""))
+    prices: dict[str, float] = {}
+
+    selectors = {
+        "Ungraded": "#used_price .price",
+        "PSA 10": "#manual_only_price .price",
+    }
+    for label, selector in selectors.items():
+        element = soup.select_one(selector)
+        price = _parse_price_text(element.get_text(" ", strip=True) if element else None)
+        if price is not None:
+            prices[label] = price
+
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        for row_index, header_row in enumerate(rows[:-1]):
+            headers = [
+                cell.get_text(" ", strip=True)
+                for cell in header_row.find_all(["th", "td"])
+            ]
+            if not headers or not any(
+                label.lower() in " ".join(headers).lower()
+                for label in ("Ungraded", "Grade 9", "PSA 10")
+            ):
+                continue
+            values = [
+                cell.get_text(" ", strip=True)
+                for cell in rows[row_index + 1].find_all(["th", "td"])
+            ]
+            if len(values) < len(headers):
+                continue
+            for label, value in zip(headers, values):
+                normalized = re.sub(r"\s+", " ", label).strip()
+                if normalized in {
+                    "Ungraded",
+                    "Grade 7",
+                    "Grade 8",
+                    "Grade 9",
+                    "Grade 9.5",
+                    "PSA 10",
+                }:
+                    price = _parse_price_text(value)
+                    if price is not None:
+                        prices.setdefault(normalized, price)
+
+    # Backward-compatible text fallbacks for pages/fixtures without the table.
+    text_content = " ".join(soup.stripped_strings)
+    if "Ungraded" not in prices:
+        for pattern in (
+            re.compile(
+                r"Full Price Guide:.*?Ungraded\s*\$([0-9][0-9,]*\.?[0-9]*)",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"Ungraded\s*\|?\s*\$([0-9][0-9,]*\.?[0-9]*)",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"Loose Price.*?\$([0-9][0-9,]*\.?[0-9]*)",
+                re.IGNORECASE,
+            ),
+        ):
+            match = pattern.search(text_content)
+            if match:
+                prices["Ungraded"] = float(match.group(1).replace(",", ""))
+                break
+
+    return prices
+
+
+def parse_ungraded_usd(html: str) -> float | None:
+    return parse_price_guide_usd(html).get("Ungraded")
+
+
+def price_tier_for_card(card: IdentifiedCard) -> str | None:
+    """Map a detected slab grade to PriceCharting's published guide columns."""
+    if not card.is_graded:
+        return "Ungraded"
+
+    company = (card.grading_company or "").upper().strip()
+    try:
+        grade_value = float(card.grade or "")
+    except ValueError:
+        return None
+
+    if company == "PSA" and grade_value == 10.0:
+        return "PSA 10"
+    if grade_value in {7.0, 8.0, 9.0, 9.5}:
+        return f"Grade {grade_value:g}"
+
+    # PriceCharting's main guide does not provide a safe equivalent for every
+    # grading company/grade combination. Do not substitute PSA 10 for another
+    # company's 10 or silently fall back to raw pricing.
     return None
 
 
@@ -228,6 +323,7 @@ class PriceChartingClient:
     def price_card(
         self, card: IdentifiedCard, target: WatchCard | None = None
     ) -> CardPrice | None:
+        price_tier = price_tier_for_card(card)
         override = self.overrides.get(card.key)
         if override is not None:
             return CardPrice(
@@ -237,7 +333,17 @@ class PriceChartingClient:
                 source_url="manual override",
                 source_title="Manual AUD override",
                 match_confidence=1.0,
+                price_tier=price_tier or card.grade_label,
             )
+
+        if price_tier is None:
+            LOGGER.warning(
+                "No safe PriceCharting guide tier for graded card %s (%s); "
+                "leaving it unpriced instead of using the raw value",
+                card.key,
+                card.grade_label,
+            )
+            return None
 
         direct_url = None
         if (
@@ -254,9 +360,9 @@ class PriceChartingClient:
         # the normal confidence threshold. If the page is unavailable or does not
         # match, the standard PriceCharting search remains as a safe fallback.
         if direct_url:
-            direct_data = self._fetch_product(direct_url)
+            direct_data = self._fetch_product(direct_url, price_tier)
             if direct_data:
-                usd, title = direct_data
+                usd, title, fetched_tier = direct_data
                 # The page title must independently identify the card. The URL
                 # is user-supplied, so allowing it to prove the identity would
                 # make a wrong pasted link appear valid.
@@ -274,6 +380,7 @@ class PriceChartingClient:
                         source_url=direct_url,
                         source_title=title,
                         match_confidence=confidence,
+                        price_tier=fetched_tier,
                     )
                 LOGGER.warning(
                     "Watchlist PriceCharting reference did not match %s at %.0f%%: "
@@ -296,10 +403,10 @@ class PriceChartingClient:
             return None
         url, search_confidence = candidate
 
-        data = self._fetch_product(url)
+        data = self._fetch_product(url, price_tier)
         if not data:
             return None
-        usd, title = data
+        usd, title, fetched_tier = data
         confidence = min(
             search_confidence,
             identity_match_confidence(card, f"{title} {url}"),
@@ -321,6 +428,7 @@ class PriceChartingClient:
             source_url=url,
             source_title=title,
             match_confidence=confidence,
+            price_tier=fetched_tier,
         )
 
     def _find_product_url(self, card: IdentifiedCard) -> tuple[str, float] | None:
@@ -376,25 +484,50 @@ class PriceChartingClient:
         )
         return None
 
-    def _fetch_product(self, url: str) -> tuple[float, str] | None:
+    def _fetch_product(
+        self,
+        url: str,
+        price_tier: str = "Ungraded",
+    ) -> tuple[float, str, str] | None:
         cached = self.cache.get(url)
         if cached:
-            fetched = datetime.fromisoformat(cached["fetched_at"])
+            fetched_at = cached.get("fetched_at")
+            try:
+                fetched = datetime.fromisoformat(str(fetched_at))
+            except (TypeError, ValueError):
+                fetched = datetime.min.replace(tzinfo=timezone.utc)
             if datetime.now(timezone.utc) - fetched < timedelta(hours=self.cache_hours):
-                return float(cached["price_usd"]), str(cached["title"])
+                prices = cached.get("prices_usd") or {}
+                # Migrate the previous one-price cache format without breaking
+                # existing repositories. It is valid only for the ungraded tier.
+                if not prices and cached.get("price_usd") is not None:
+                    prices = {"Ungraded": float(cached["price_usd"])}
+                if price_tier in prices:
+                    return (
+                        float(prices[price_tier]),
+                        str(cached.get("title") or ""),
+                        price_tier,
+                    )
+
         html = self._get(url)
         if html is None:
             return None
-        price = parse_ungraded_usd(html)
-        if price is None:
-            return None
+        prices = parse_price_guide_usd(html)
         title = page_title(html)
         self.cache[url] = {
-            "price_usd": price,
+            "prices_usd": prices,
             "title": title,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
-        return price, title
+        price = prices.get(price_tier)
+        if price is None:
+            LOGGER.warning(
+                "PriceCharting page %s has no published %s guide value",
+                url,
+                price_tier,
+            )
+            return None
+        return price, title, price_tier
 
     def _get(self, url: str) -> str | None:
         try:

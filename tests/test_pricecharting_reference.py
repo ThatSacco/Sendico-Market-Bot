@@ -60,9 +60,9 @@ def test_direct_watchlist_reference_is_used_before_search(tmp_path, monkeypatch)
     client = _client(tmp_path)
     calls: list[str] = []
 
-    def fetch(url: str):
+    def fetch(url: str, price_tier: str = "Ungraded"):
         calls.append(url)
-        return 12.0, MATCHING_TITLE
+        return 12.0, MATCHING_TITLE, price_tier
 
     monkeypatch.setattr(client, "_fetch_product", fetch)
     monkeypatch.setattr(
@@ -85,11 +85,11 @@ def test_invalid_direct_page_identity_falls_back_to_search(tmp_path, monkeypatch
     client = _client(tmp_path)
     calls: list[str] = []
 
-    def fetch(url: str):
+    def fetch(url: str, price_tier: str = "Ungraded"):
         calls.append(url)
         if url == DIRECT_URL:
-            return 50.0, "Victini #97 Prices | Pokemon Japanese Black Bolt"
-        return 12.0, MATCHING_TITLE
+            return 50.0, "Victini #97 Prices | Pokemon Japanese Black Bolt", price_tier
+        return 12.0, MATCHING_TITLE, price_tier
 
     monkeypatch.setattr(client, "_fetch_product", fetch)
     monkeypatch.setattr(client, "_find_product_url", lambda card: (FALLBACK_URL, 1.0))
@@ -107,11 +107,11 @@ def test_unavailable_direct_page_falls_back_to_search(tmp_path, monkeypatch):
     client = _client(tmp_path)
     calls: list[str] = []
 
-    def fetch(url: str):
+    def fetch(url: str, price_tier: str = "Ungraded"):
         calls.append(url)
         if url == DIRECT_URL:
             return None
-        return 12.0, MATCHING_TITLE
+        return 12.0, MATCHING_TITLE, price_tier
 
     monkeypatch.setattr(client, "_fetch_product", fetch)
     monkeypatch.setattr(client, "_find_product_url", lambda card: (FALLBACK_URL, 1.0))
@@ -130,9 +130,9 @@ def test_reference_is_not_used_for_unmatched_card(tmp_path, monkeypatch):
     card.matched_watchlist_ids = []
     calls: list[str] = []
 
-    def fetch(url: str):
+    def fetch(url: str, price_tier: str = "Ungraded"):
         calls.append(url)
-        return 12.0, MATCHING_TITLE
+        return 12.0, MATCHING_TITLE, price_tier
 
     monkeypatch.setattr(client, "_fetch_product", fetch)
     monkeypatch.setattr(client, "_find_product_url", lambda card: (FALLBACK_URL, 1.0))
