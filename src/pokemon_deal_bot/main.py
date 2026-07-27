@@ -23,6 +23,27 @@ from .vision import LotVisionAnalyzer
 LOGGER = logging.getLogger(__name__)
 
 
+def _merge_listing(existing: SendicoListing, found: SendicoListing) -> SendicoListing:
+    """Merge richer search data into an existing direct-test placeholder."""
+    if found.title and (
+        existing.title == "Direct test listing" or not existing.title.strip()
+    ):
+        existing.title = found.title
+    if found.price_yen > 0:
+        existing.price_yen = found.price_yen
+    if found.image_urls:
+        existing.image_urls = list(
+            dict.fromkeys([*existing.image_urls, *found.image_urls])
+        )
+    if found.description:
+        existing.description = found.description
+    if found.raw_text:
+        existing.raw_text = found.raw_text
+    if found.seller_positive_ratings is not None:
+        existing.seller_positive_ratings = found.seller_positive_ratings
+    return existing
+
+
 async def run(config_path: str, dry_run: bool = False) -> int:
     config = load_config(config_path)
     targets = load_watchlist(config)
@@ -117,41 +138,29 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 )
                 LOGGER.info("Queued direct test listing: %s", direct_url)
 
-                        for term in config.raw["sendico"]["search_terms"]:
+            configured_terms = [
+                str(term).strip()
+                for term in config.raw["sendico"]["search_terms"]
+                if str(term).strip()
+            ]
+            # Searching the exact Mercari item code gives a direct-test listing
+            # the best chance of being enriched with its thumbnail and price.
+            direct_codes = [
+                url.rstrip("/").split("/")[-1] for url in direct_urls
+            ]
+            search_terms = list(
+                dict.fromkeys([*direct_codes, *configured_terms])
+            )
+
+            for term in search_terms:
                 LOGGER.info("Searching Sendico Mercari: %s", term)
-
-            for found_listing in await scanner.search(term):
+                for found_listing in await scanner.search(term):
                     existing = candidates.get(found_listing.code)
-
                     if existing is None:
                         candidates[found_listing.code] = found_listing
-                        continue
+                    else:
+                        _merge_listing(existing, found_listing)
 
-                    # Enrich a direct-test placeholder using the real
-                    # Sendico search result.
-                    if found_listing.image_urls:
-                        existing.image_urls = list(
-                            dict.fromkeys(
-                                existing.image_urls
-                                + found_listing.image_urls
-                            )
-                        )
-
-                    if (
-                        existing.price_yen <= 0
-                        and found_listing.price_yen > 0
-                    ):
-                        existing.price_yen = found_listing.price_yen
-
-                    if (
-                        existing.title == "Direct test listing"
-                        and found_listing.title
-                    ):
-                        existing.title = found_listing.title
-
-                    if found_listing.raw_text:
-                        existing.raw_text = found_listing.raw_text
-                        
             limit = int(config.raw["sendico"].get("max_listings_per_run", 12))
             for listing in list(candidates.values())[:limit]:
                 try:

@@ -143,42 +143,133 @@ class SendicoMercariScanner:
         try:
             await page.goto(listing.url, wait_until="domcontentloaded")
             await self._dismiss_cookies(page)
-            await page.wait_for_timeout(1800)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=5_000)
+            except Exception:
+                # Some Sendico pages keep background requests open indefinitely.
+                pass
+            await page.mouse.wheel(0, 900)
+            await page.wait_for_timeout(1_800)
+
             body_text = await page.locator("body").inner_text()
             heading = page.locator("h1").first
             if await heading.count():
                 text = (await heading.inner_text()).strip()
                 if text:
                     listing.title = text
-            images = await page.locator("img").evaluate_all(
-                """
-                (imgs) => imgs.map((img) => ({
-                  src: img.currentSrc || img.src || '',
-                  width: img.naturalWidth || 0,
-                  height: img.naturalHeight || 0,
-                  alt: img.alt || ''
-                }))
+
+            meta_images = await page.locator(
+                'meta[property="og:image"], meta[name="twitter:image"], '
+                'meta[property="twitter:image"]'
+            ).evaluate_all(
+                r"""
+                (nodes) => nodes.map((node) => node.content || '').filter(Boolean)
                 """
             )
+            images = await page.locator("img").evaluate_all(
+                r"""
+                (imgs) => imgs.map((img) => {
+                  const srcset = (img.getAttribute('srcset') || '')
+                    .split(',')
+                    .map((part) => part.trim().split(/\s+/)[0])
+                    .filter(Boolean);
+                  const candidates = [
+                    img.currentSrc,
+                    img.src,
+                    img.getAttribute('data-src'),
+                    img.getAttribute('data-original'),
+                    img.getAttribute('data-lazy-src'),
+                    srcset.length ? srcset[srcset.length - 1] : ''
+                  ].filter(Boolean);
+                  return {
+                    candidates,
+                    width: Math.max(
+                      img.naturalWidth || 0,
+                      img.width || 0,
+                      img.clientWidth || 0
+                    ),
+                    height: Math.max(
+                      img.naturalHeight || 0,
+                      img.height || 0,
+                      img.clientHeight || 0
+                    ),
+                    alt: img.alt || ''
+                  };
+                })
+                """
+            )
+            background_images = await page.locator(
+                '[style*="background-image"]'
+            ).evaluate_all(
+                r"""
+                (nodes) => nodes.map((node) => {
+                  const value = node.style.backgroundImage || '';
+                  const match = value.match(/url\(["']?(.*?)["']?\)/i);
+                  return match ? match[1] : '';
+                }).filter(Boolean)
+                """
+            )
+
             selected: list[str] = []
-            for image in images:
-                src = image.get("src", "")
+
+            def add_image(src: str, alt: str = "") -> None:
+                src = str(src or "").strip()
                 if not src or src.startswith("data:"):
-                    continue
-                if image.get("width", 0) < 280 or image.get("height", 0) < 280:
-                    continue
-                low = (src + " " + image.get("alt", "")).lower()
-                if any(token in low for token in ["logo", "avatar", "icon", "flag"]):
-                    continue
+                    return
+                low = f"{src} {alt}".lower()
+                if any(
+                    token in low
+                    for token in [
+                        "logo",
+                        "avatar",
+                        "icon",
+                        "flag",
+                        "favicon",
+                        "payment",
+                    ]
+                ):
+                    return
                 absolute = urljoin(listing.url, src)
                 if absolute not in selected:
                     selected.append(absolute)
-            listing.image_urls = selected or listing.image_urls
+
+            for src in meta_images:
+                add_image(src)
+
+            for image in images:
+                width = int(image.get("width", 0) or 0)
+                height = int(image.get("height", 0) or 0)
+                if max(width, height) < 120:
+                    continue
+                for src in image.get("candidates", []):
+                    add_image(src, str(image.get("alt", "")))
+
+            for src in background_images:
+                add_image(src)
+
+            # Last-resort extraction for image URLs embedded in page state JSON.
+            if not selected:
+                html = (await page.content()).replace("\\/", "/")
+                for src in re.findall(
+                    r'https?://[^"\'\s<>]+?\.(?:jpe?g|png|webp)'
+                    r'(?:\?[^"\'\s<>]*)?',
+                    html,
+                    flags=re.IGNORECASE,
+                ):
+                    add_image(src)
+
+            listing.image_urls = list(
+                dict.fromkeys([*listing.image_urls, *selected])
+            )
             listing.description = body_text
             listing.raw_text = body_text
-            listing.seller_positive_ratings = parse_seller_positive_ratings(body_text)
+            listing.seller_positive_ratings = parse_seller_positive_ratings(
+                body_text
+            )
             if listing.seller_positive_ratings is None:
-                listing.seller_positive_ratings = await self._seller_rating_from_profile(page)
+                listing.seller_positive_ratings = await self._seller_rating_from_profile(
+                    page
+                )
             if listing.price_yen <= 0:
                 parsed_price = parse_yen(body_text)
                 if parsed_price:

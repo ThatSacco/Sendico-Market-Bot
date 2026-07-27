@@ -1,49 +1,47 @@
-# Two-pass Gemini lot-analysis patch
+# Fixed two-pass Gemini patch
 
-This patch tests the known Sendico lot:
+This patch fixes the `No listing images could be downloaded for Gemini analysis` error.
 
-`https://sendico.com/shop/mercari/catalog/m10381389468`
+## What changed
 
-## What it changes
-
-- Adds a two-pass Gemini method for lots and collections.
-- Pass 1 reviews the original listing image and returns card bounding boxes.
-- The bot crops and enlarges up to 16 cards locally using Pillow.
-- Pass 2 sends all crops together in one Gemini request and identifies exact card numbers.
-- Maximum Gemini calls for the test listing: **2**.
-- Diagnostic mode sends one Discord result.
-- The exact test listing is queued directly, so search ordering cannot select a single card first.
+1. Direct test listings are searched by their exact Mercari item code and enriched with the real Sendico search result.
+2. A search result now replaces missing placeholder data instead of being ignored.
+3. Sendico detail pages now check:
+   - Open Graph and Twitter preview images
+   - regular and lazy-loaded image attributes
+   - `srcset` images
+   - CSS background images
+   - image URLs embedded in page data
+4. The full Gemini two-pass files, Discord diagnostic functions and GitHub workflow are included together so the repository cannot end up with mixed versions.
 
 ## Upload
 
 1. Extract the ZIP.
-2. Upload the contents to the root of the GitHub repository.
-3. Allow the existing files to be replaced.
-4. Commit directly to `main`.
-5. Run `Scan Sendico Pokemon Deals` manually.
+2. Open the extracted `sendico-two-pass-fixed-patch` folder.
+3. Upload the **contents inside it** to the root of the GitHub repository.
+4. Allow GitHub to replace all matching files.
+5. Commit directly to `main`.
+6. Confirm the repository secret `GEMINI_API_KEY` still exists.
+7. Run `Scan Sendico Pokemon Deals` manually.
 
-## Expected Discord result
+## Expected result
 
-Look for `Vision notes` containing text similar to:
+The Discord result should show the real listing title and one or more listing images. The two-pass result should include a note similar to:
 
-`Two-pass Gemini analysis: 16 regions selected, 16 enlarged crops sent in one second request...`
+`Two-pass Gemini analysis: ... enlarged crops sent in one second request ...`
 
-The listing may still have unidentified cards if the original photo does not contain enough detail.
+## Disable later
 
-## Turn it off
-
-In `config.yaml`:
+Turn off two-pass image cropping:
 
 ```yaml
 vision:
   two_pass_enabled: false
 ```
 
-To stop diagnostic alerts and return to normal filtering:
+Return to normal deal restrictions:
 
 ```yaml
 test_mode:
   enabled: false
 ```
-
-Remove `direct_listing_urls` after the test.
