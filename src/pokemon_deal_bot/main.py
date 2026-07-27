@@ -52,7 +52,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         cache_hours=int(fx_cfg.get("cache_hours", 12)),
     )
     vision = LotVisionAnalyzer(
-        api_key=config.openai_api_key or "",
+        api_key=config.gemini_api_key or "",
         model=str(vision_cfg["model"]),
         max_images=int(vision_cfg["max_images_per_listing"]),
     )
