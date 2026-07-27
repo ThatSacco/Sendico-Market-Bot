@@ -28,8 +28,8 @@ class AppConfig:
         return os.getenv("DISCORD_WEBHOOK_URL")
 
     @property
-    def openai_api_key(self) -> str | None:
-        return os.getenv("OPENAI_API_KEY")
+    def gemini_api_key(self) -> str | None:
+        return os.getenv("GEMINI_API_KEY")
 
     def path(self, relative: str) -> Path:
         return self.root / relative
