@@ -32,24 +32,33 @@ sendico:
   max_listings_per_run: 0
   prefilter_watchlist_relevance: true
 
-  # Tier 2 broad-lot test. Exact watchlist searches still run first. These
-  # additional Pokemon-name-plus-lot terms are read from lot_search_terms in
-  # data/watchlist.yaml. Query-only results may reach Gemini even when the
-  # search-result title does not repeat the target name, but the separate cap
-  # prevents broad searches from consuming the full paid-vision budget.
+  # Tier 2 lot-value discovery. Broad listings are first screened with the
+  # cheaper Gemini Flash-Lite model. Only probable target listings proceed to
+  # full card identification and PriceCharting valuation with Gemini Flash.
   tier2_lot_search:
     enabled: true
-
-    # For this test, run only the broad lot searches below. This prevents the
-    # normal exact-card searches from filling Discord with the same single-card
-    # listings while we measure whether generic lots contain the target card.
     run_standard_watchlist_searches: false
-
     max_results_per_search: 40
-    # Applied after previously processed listings are skipped, allowing later
-    # lot candidates to rotate into future runs without increasing Gemini use.
-    max_analyses_per_run: 20
     allow_query_only_candidates: true
+
+    # Broad first-pass target screening. Era/set searches are screened before
+    # generic Pokemon lots. Negative screens are recorded so later runs rotate
+    # through listings held behind the cap.
+    screening_enabled: true
+    screening_model: "gemini-3.5-flash-lite"
+    screening_fallback_models:
+      - "gemini-3.6-flash"
+    screening_confidence_threshold: 0.45
+    max_screenings_per_run: 100
+    era_set_screening_limit: 70
+    generic_screening_limit: 30
+    screening_max_overview_images: 4
+    screening_max_dimension_px: 1400
+    screening_jpeg_quality: 78
+
+    # Only probable target listings receive the detailed multi-overview pass.
+    max_detailed_analyses_per_run: 20
+    detailed_max_overview_images: 4
 
     # Sendico/Mercari may return a single card even for a broad lot query. After
     # hydration, require clear multi-card language before spending Gemini tokens.

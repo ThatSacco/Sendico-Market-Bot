@@ -113,7 +113,7 @@ def test_rank_candidate_pool_places_tier2_after_exact_results():
         title="Pokemon cards assorted sale",
         price_yen=3000,
     )
-    selected, filtered, tier2_selected = _rank_candidate_pool(
+    selected, filtered, era_selected, generic_selected = _rank_candidate_pool(
         {
             exact.code: exact,
             named_lot.code: named_lot,
@@ -121,8 +121,8 @@ def test_rank_candidate_pool_places_tier2_after_exact_results():
         },
         {
             exact.code: {"watchlist"},
-            named_lot.code: {"tier2_lot"},
-            query_only.code: {"tier2_lot"},
+            named_lot.code: {"tier2_generic"},
+            query_only.code: {"tier2_generic"},
         },
         [_target()],
         direct_codes=set(),
@@ -136,7 +136,8 @@ def test_rank_candidate_pool_places_tier2_after_exact_results():
         "query-only",
     ]
     assert filtered == 0
-    assert tier2_selected == 2
+    assert era_selected == 0
+    assert generic_selected == 2
 
 
 def test_rank_candidate_pool_can_reject_query_only_tier2_results():
@@ -146,9 +147,9 @@ def test_rank_candidate_pool_can_reject_query_only_tier2_results():
         title="Pikachu card sleeves",
         price_yen=1000,
     )
-    selected, filtered, tier2_selected = _rank_candidate_pool(
+    selected, filtered, era_selected, generic_selected = _rank_candidate_pool(
         {query_only.code: query_only},
-        {query_only.code: {"tier2_lot"}},
+        {query_only.code: {"tier2_generic"}},
         [_target()],
         direct_codes=set(),
         prefilter_enabled=True,
@@ -157,7 +158,8 @@ def test_rank_candidate_pool_can_reject_query_only_tier2_results():
 
     assert selected == []
     assert filtered == 1
-    assert tier2_selected == 0
+    assert era_selected == 0
+    assert generic_selected == 0
 
 
 def test_listing_found_by_exact_and_tier2_is_not_tier2_only():
@@ -167,9 +169,9 @@ def test_listing_found_by_exact_and_tier2_is_not_tier2_only():
         title="デンリュウEX 027/081 まとめ",
         price_yen=1000,
     )
-    selected, filtered, tier2_selected = _rank_candidate_pool(
+    selected, filtered, era_selected, generic_selected = _rank_candidate_pool(
         {listing.code: listing},
-        {listing.code: {"watchlist", "tier2_lot"}},
+        {listing.code: {"watchlist", "tier2_era"}},
         [_target()],
         direct_codes=set(),
         prefilter_enabled=True,
@@ -178,7 +180,35 @@ def test_listing_found_by_exact_and_tier2_is_not_tier2_only():
 
     assert [item.code for item in selected] == ["duplicate"]
     assert filtered == 0
-    assert tier2_selected == 0
+    assert era_selected == 0
+    assert generic_selected == 0
+
+
+def test_rank_candidate_pool_places_era_lots_before_generic_lots():
+    era = SendicoListing(
+        code="era",
+        url="https://example.test/era",
+        title="XY7 Pokemon cards まとめ売り",
+        price_yen=2000,
+    )
+    generic = SendicoListing(
+        code="generic",
+        url="https://example.test/generic",
+        title="Pokemon cards まとめ売り",
+        price_yen=2000,
+    )
+    selected, filtered, era_selected, generic_selected = _rank_candidate_pool(
+        {era.code: era, generic.code: generic},
+        {era.code: {"tier2_era"}, generic.code: {"tier2_generic"}},
+        [_target()],
+        direct_codes=set(),
+        prefilter_enabled=True,
+        allow_tier2_query_only=True,
+    )
+    assert [item.code for item in selected] == ["era", "generic"]
+    assert filtered == 0
+    assert era_selected == 1
+    assert generic_selected == 1
 
 
 def test_strong_lot_evidence_accepts_multi_card_language():

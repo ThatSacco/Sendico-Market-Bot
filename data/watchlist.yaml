@@ -29,17 +29,22 @@ cards:
       - "デンリュウEX XY7"
       - "Ampharos EX 027/081 Japanese"
 
-    # Tier 2 broad-lot discovery intentionally removes the Pokemon name from
-    # most queries. Gemini still has to identify Ampharos EX 027/081 in the
-    # listing photos before an alert can qualify. The XY-era searches increase
-    # the chance of finding the target without reverting to exact-card listings.
-    lot_search_terms:
+    # Tier 2 lot discovery is split into two search groups. Era/set searches
+    # are screened first because they are more likely to contain the target.
+    # Generic searches provide broader discovery after the focused pool.
+    era_lot_search_terms:
+      - "ポケカ XY まとめ売り"
+      - "ポケモンカード XY 引退品"
+      - "ポケカ EX まとめ売り"
+      - "XY7 まとめ売り"
+      - "バンデットリング まとめ売り"
+      - "バンデットリング セット販売"
+
+    generic_lot_search_terms:
       - "ポケカ まとめ売り"
       - "ポケモンカード まとめ売り"
       - "ポケカ 引退品"
       - "ポケカ 大量"
-      - "ポケカ XY まとめ売り"
-      - "バンデットリング まとめ売り"
 
   # General-search example. Change active to true to search for any Tyranitar
   # across the four main Neo-era sets at the same time as Ampharos EX.

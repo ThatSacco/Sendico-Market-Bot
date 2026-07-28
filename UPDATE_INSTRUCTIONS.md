@@ -1,36 +1,32 @@
-# Upload instructions — genuine Tier 2 lots
+# Tier 2 two-pass lot-search update
 
-Upload the package contents to the root of the GitHub repository and replace the
-matching files while preserving folder paths.
-
-## Files changed
-
-- `config.yaml`
-- `data/watchlist.yaml`
-- `src/pokemon_deal_bot/main.py`
-- `src/pokemon_deal_bot/discord.py`
-- `tests/test_config.py`
-- `tests/test_main.py`
-- `tests/test_discord.py`
-
-## Secrets
+Upload the contents of this folder to the root of the GitHub repository and replace matching files while preserving the folder paths.
 
 No GitHub secret changes are required. Keep:
 
 - `GEMINI_API_KEY`
 - `DISCORD_WEBHOOK_URL`
 
-## Expected next run
+## What changes
 
-The normal exact-card marketplace searches are disabled for this test, so the
-previous single-card alert list should not dominate the run. The completion
-summary will include:
+1. Tier 2 searches are split into higher-priority XY/EX/XY7/Bandit Ring lots and lower-priority generic Pokemon lots.
+2. Up to 100 eligible lots are screened with `gemini-3.5-flash-lite` each run.
+3. The screening pass checks up to four overview photos and only probable target listings continue.
+4. Up to 20 probable listings receive detailed `gemini-3.6-flash` analysis.
+5. Detailed analysis combines crops from several distinct overview photos instead of anchoring all quantity and value to one photo.
+6. Negative screening results are saved in `data/seen.json`, allowing later candidates to rotate into subsequent runs.
+7. The Discord completion summary reports era/generic candidates, screened listings, probable targets, detailed analyses and confirmed targets separately.
 
-- Tier 2 candidates
-- Tier 2 analysed
-- Tier 2 rejected as non-lot
-- Tier 2 held after cap
-- Tier 2 lot matches
+## First run expectations
 
-Run the GitHub Actions test workflow first, then manually run the scanner.
-Expected local validation for this package: `90 passed`.
+The watchlist signature changes, so some previously seen listings may be reconsidered once. A normal completion summary should show separate counts for:
+
+- Tier 2 era/set and generic candidates
+- screened listings
+- probable targets
+- detailed analyses
+- confirmed Tier 2 targets
+
+## Validation
+
+Run the normal GitHub Actions test workflow before the production scan.

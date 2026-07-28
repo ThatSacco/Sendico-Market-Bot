@@ -9,7 +9,8 @@ import unicodedata
 from .config import (
     load_config,
     load_watchlist,
-    watchlist_lot_search_terms,
+    watchlist_era_lot_search_terms,
+    watchlist_generic_lot_search_terms,
     watchlist_search_terms,
     watchlist_signature,
 )
@@ -150,10 +151,20 @@ def _candidate_relevance_score(
 
 def _is_tier2_only(sources: set[str]) -> bool:
     return (
-        "tier2_lot" in sources
+        bool({"tier2_era", "tier2_generic", "tier2_lot"} & sources)
         and "watchlist" not in sources
         and "direct" not in sources
     )
+
+
+def _tier2_category(sources: set[str]) -> str | None:
+    if not _is_tier2_only(sources):
+        return None
+    if "tier2_era" in sources:
+        return "era"
+    if "tier2_generic" in sources or "tier2_lot" in sources:
+        return "generic"
+    return None
 
 
 def _has_strong_lot_evidence(
@@ -202,17 +213,11 @@ def _rank_candidate_pool(
     direct_codes: set[str],
     prefilter_enabled: bool,
     allow_tier2_query_only: bool,
-) -> tuple[list[SendicoListing], int, int]:
-    """Rank exact/watchlist results first and Tier 2-only lots second.
-
-    A Tier 2 query can return a listing whose visible search-result text does not
-    repeat the Pokemon name. When explicitly enabled, those query-only results are
-    retained at the lowest priority so Gemini can inspect the photos. The Gemini
-    analysis cap is applied later, after unchanged listings have been skipped, so
-    additional Tier 2 candidates can rotate into subsequent runs.
-    """
+) -> tuple[list[SendicoListing], int, int, int]:
+    """Rank exact results first, then era/set lots, then generic lots."""
     regular_ranked: list[tuple[int, SendicoListing]] = []
-    tier2_ranked: list[tuple[int, SendicoListing]] = []
+    era_ranked: list[tuple[int, SendicoListing]] = []
+    generic_ranked: list[tuple[int, SendicoListing]] = []
     prefiltered_out = 0
 
     for candidate in candidates.values():
@@ -222,23 +227,29 @@ def _rank_candidate_pool(
         else:
             score = _candidate_relevance_score(candidate, targets)
 
-        tier2_only = _is_tier2_only(sources)
+        category = _tier2_category(sources)
         if score <= 0:
-            if tier2_only and allow_tier2_query_only:
+            if category and allow_tier2_query_only:
                 score = 1
             elif prefilter_enabled:
                 prefiltered_out += 1
                 continue
 
-        destination = tier2_ranked if tier2_only else regular_ranked
-        destination.append((score, candidate))
+        if category == "era":
+            era_ranked.append((score, candidate))
+        elif category == "generic":
+            generic_ranked.append((score, candidate))
+        else:
+            regular_ranked.append((score, candidate))
 
     regular_ranked.sort(key=lambda item: item[0], reverse=True)
-    tier2_ranked.sort(key=lambda item: item[0], reverse=True)
+    era_ranked.sort(key=lambda item: item[0], reverse=True)
+    generic_ranked.sort(key=lambda item: item[0], reverse=True)
 
     selected = [candidate for _, candidate in regular_ranked]
-    selected.extend(candidate for _, candidate in tier2_ranked)
-    return selected, prefiltered_out, len(tier2_ranked)
+    selected.extend(candidate for _, candidate in era_ranked)
+    selected.extend(candidate for _, candidate in generic_ranked)
+    return selected, prefiltered_out, len(era_ranked), len(generic_ranked)
 
 
 async def run(config_path: str, dry_run: bool = False) -> int:
@@ -405,6 +416,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     discovered_count = 0
     prefiltered_out = 0
     tier2_selected_count = 0
+    tier2_era_selected_count = 0
+    tier2_generic_selected_count = 0
+    tier2_screened_count = 0
+    tier2_era_screened_count = 0
+    tier2_generic_screened_count = 0
+    tier2_probable_count = 0
     tier2_analyses_started = 0
     tier2_held_count = 0
     tier2_non_lot_filtered = 0
@@ -459,28 +476,36 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             run_standard_watchlist_searches = bool(
                 tier2_cfg.get("run_standard_watchlist_searches", True)
             )
-            tier2_terms = (
-                watchlist_lot_search_terms(targets) if tier2_enabled else []
+            era_terms = (
+                watchlist_era_lot_search_terms(targets) if tier2_enabled else []
             )
-            # A term already used by the normal watchlist search does not need a
-            # second marketplace request. It remains classified as a normal result.
-            tier2_terms = [
-                term for term in tier2_terms if term not in set(configured_terms)
+            generic_terms = (
+                watchlist_generic_lot_search_terms(targets) if tier2_enabled else []
+            )
+            standard_term_set = set(configured_terms)
+            era_terms = [term for term in era_terms if term not in standard_term_set]
+            era_term_set = set(era_terms)
+            generic_terms = [
+                term
+                for term in generic_terms
+                if term not in standard_term_set and term not in era_term_set
             ]
-            if tier2_enabled and not tier2_terms:
+            if tier2_enabled and not era_terms and not generic_terms:
                 LOGGER.warning(
                     "Tier 2 lot search is enabled, but no active watchlist entry "
-                    "contains lot_search_terms"
+                    "contains era_lot_search_terms or generic_lot_search_terms"
                 )
 
-            if not configured_terms and not tier2_terms and not direct_urls:
+            if (
+                not configured_terms
+                and not era_terms
+                and not generic_terms
+                and not direct_urls
+            ):
                 raise RuntimeError(
                     "No Sendico search terms were produced by the active watchlist"
                 )
 
-            # A direct test URL can be hydrated from its own detail page. Skipping
-            # the category search avoids a slow Sendico category page preventing
-            # the actual test listing from being analysed.
             skip_search_for_direct_test = bool(
                 test_mode
                 and direct_urls
@@ -501,17 +526,19 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         for term in configured_terms
                         if run_standard_watchlist_searches
                     ),
-                    *(("tier2_lot", term) for term in tier2_terms),
+                    *(("tier2_era", term) for term in era_terms),
+                    *(("tier2_generic", term) for term in generic_terms),
                 ]
 
             tier2_results_per_search = max(
                 0,
-                int(tier2_cfg.get("max_results_per_search", 30)),
+                int(tier2_cfg.get("max_results_per_search", 40)),
             )
             search_labels = {
                 "direct": "direct listing",
                 "watchlist": "watchlist",
-                "tier2_lot": "Tier 2 lot",
+                "tier2_era": "Tier 2 era/set lot",
+                "tier2_generic": "Tier 2 generic lot",
             }
             for source, term in search_plan:
                 LOGGER.info(
@@ -521,7 +548,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 )
                 try:
                     found_results = await scanner.search(term)
-                except Exception as exc:  # noqa: BLE001 - a search must not abort a run
+                except Exception as exc:  # noqa: BLE001
                     LOGGER.warning(
                         "Sendico search failed for %s; continuing with other "
                         "searches/direct listings: %s",
@@ -530,7 +557,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     )
                     continue
 
-                if source == "tier2_lot" and tier2_results_per_search > 0:
+                if source.startswith("tier2_") and tier2_results_per_search > 0:
                     found_results = found_results[:tier2_results_per_search]
 
                 for found_listing in found_results:
@@ -548,7 +575,8 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             (
                 listings_to_process,
                 prefiltered_out,
-                tier2_selected_count,
+                tier2_era_selected_count,
+                tier2_generic_selected_count,
             ) = _rank_candidate_pool(
                 candidates,
                 candidate_sources,
@@ -564,24 +592,77 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             if limit > 0:
                 listings_to_process = listings_to_process[:limit]
 
-            tier2_selected_count = sum(
+            tier2_era_selected_count = sum(
                 1
                 for listing in listings_to_process
-                if _is_tier2_only(candidate_sources.get(listing.code, set()))
+                if _tier2_category(
+                    candidate_sources.get(listing.code, set())
+                ) == "era"
+            )
+            tier2_generic_selected_count = sum(
+                1
+                for listing in listings_to_process
+                if _tier2_category(
+                    candidate_sources.get(listing.code, set())
+                ) == "generic"
+            )
+            tier2_selected_count = (
+                tier2_era_selected_count + tier2_generic_selected_count
+            )
+
+            screening_enabled = bool(tier2_cfg.get("screening_enabled", True))
+            screening_model = str(
+                tier2_cfg.get("screening_model", "gemini-3.5-flash-lite")
+            ).strip()
+            screening_fallback_models = [
+                str(value).strip()
+                for value in tier2_cfg.get("screening_fallback_models", [])
+                if str(value).strip()
+            ]
+            screening_models = list(
+                dict.fromkeys([screening_model, *screening_fallback_models])
+            )
+            screening_threshold = max(
+                0.0,
+                min(
+                    1.0,
+                    float(
+                        tier2_cfg.get("screening_confidence_threshold", 0.45)
+                    ),
+                ),
+            )
+            screening_limit = max(
+                0,
+                int(tier2_cfg.get("max_screenings_per_run", 100)),
+            )
+            era_screening_limit = max(
+                0,
+                int(tier2_cfg.get("era_set_screening_limit", 70)),
+            )
+            generic_screening_limit = max(
+                0,
+                int(tier2_cfg.get("generic_screening_limit", 30)),
             )
             tier2_analysis_limit = max(
                 0,
-                int(tier2_cfg.get("max_analyses_per_run", 20)),
+                int(
+                    tier2_cfg.get(
+                        "max_detailed_analyses_per_run",
+                        tier2_cfg.get("max_analyses_per_run", 20),
+                    )
+                ),
             )
 
             LOGGER.info(
                 "Search found %d unique listing(s); %d selected for processing "
-                "including %d Tier 2 lot candidate(s); %d filtered before Gemini; "
-                "Tier 2 Gemini analysis cap: %s",
+                "including %d Tier 2 era/set and %d Tier 2 generic candidate(s); "
+                "%d filtered before Gemini; screening cap %s; detailed cap %s",
                 discovered_count,
                 len(listings_to_process),
-                tier2_selected_count,
+                tier2_era_selected_count,
+                tier2_generic_selected_count,
                 prefiltered_out,
+                screening_limit or "unlimited",
                 tier2_analysis_limit or "unlimited",
             )
 
@@ -678,12 +759,15 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             seller_filtered += 1
                             continue
 
+                    tier2_category = _tier2_category(
+                        candidate_sources.get(listing.code, set())
+                    )
                     if (
                         tier2_only
                         and tier2_analysis_limit > 0
                         and tier2_analyses_started >= tier2_analysis_limit
                     ):
-                        tier2_held_count = sum(
+                        tier2_held_count += sum(
                             1
                             for remaining in listings_to_process[listing_index:]
                             if _is_tier2_only(
@@ -691,23 +775,111 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             )
                         )
                         LOGGER.info(
-                            "Tier 2 Gemini analysis cap of %d reached; %d remaining "
-                            "Tier 2 candidate(s) will be reconsidered on the next run",
+                            "Tier 2 detailed-analysis cap of %d reached; %d remaining "
+                            "candidate(s) will be reconsidered on the next run",
                             tier2_analysis_limit,
                             tier2_held_count,
                         )
                         break
 
+                    screening_result = None
+                    if tier2_only and screening_enabled:
+                        if (
+                            screening_limit > 0
+                            and tier2_screened_count >= screening_limit
+                        ):
+                            tier2_held_count += sum(
+                                1
+                                for remaining in listings_to_process[listing_index:]
+                                if _is_tier2_only(
+                                    candidate_sources.get(remaining.code, set())
+                                )
+                            )
+                            LOGGER.info(
+                                "Tier 2 screening cap of %d reached; %d remaining "
+                                "candidate(s) will be reconsidered on the next run",
+                                screening_limit,
+                                tier2_held_count,
+                            )
+                            break
+
+                        category_limit_reached = (
+                            tier2_category == "era"
+                            and era_screening_limit > 0
+                            and tier2_era_screened_count >= era_screening_limit
+                        ) or (
+                            tier2_category == "generic"
+                            and generic_screening_limit > 0
+                            and tier2_generic_screened_count
+                            >= generic_screening_limit
+                        )
+                        if category_limit_reached:
+                            tier2_held_count += 1
+                            LOGGER.info(
+                                "Holding Tier 2 %s candidate %s after its screening cap",
+                                tier2_category,
+                                listing.code,
+                            )
+                            continue
+
+                        screening_result = await asyncio.to_thread(
+                            vision.screen_listing,
+                            listing,
+                            targets,
+                            screening_models=screening_models,
+                            maximum_overview_images=int(
+                                tier2_cfg.get("screening_max_overview_images", 4)
+                            ),
+                            maximum_dimension_px=int(
+                                tier2_cfg.get("screening_max_dimension_px", 1400)
+                            ),
+                            jpeg_quality=int(
+                                tier2_cfg.get("screening_jpeg_quality", 78)
+                            ),
+                        )
+                        tier2_screened_count += 1
+                        if tier2_category == "era":
+                            tier2_era_screened_count += 1
+                        elif tier2_category == "generic":
+                            tier2_generic_screened_count += 1
+
+                        probable = (
+                            screening_result.target_likely_present
+                            and screening_result.confidence >= screening_threshold
+                        )
+                        if not probable:
+                            outcome = (
+                                "tier 2 screening found no probable target "
+                                f"({screening_result.confidence:.0%}): "
+                                f"{screening_result.reason[:300]}"
+                            )
+                            LOGGER.info("Skipping %s: %s", listing.code, outcome)
+                            state.update(
+                                listing,
+                                False,
+                                outcome,
+                                scan_signature,
+                            )
+                            continue
+                        tier2_probable_count += 1
+                        LOGGER.info(
+                            "Tier 2 screening marked %s probable at %.0f%%; "
+                            "relevant listing images: %s",
+                            listing.code,
+                            screening_result.confidence,
+                            screening_result.relevant_image_indexes,
+                        )
+
                     max_vision_listings = max(
                         0,
-                        int(vision_cfg.get("max_listing_analyses_per_run", 10)),
+                        int(vision_cfg.get("max_listing_analyses_per_run", 100)),
                     )
                     if (
                         max_vision_listings > 0
                         and vision_analyses_started >= max_vision_listings
                     ):
                         stop_reason = (
-                            "Stopped at the configured Gemini listing-analysis cap "
+                            "Stopped at the configured Gemini detailed-analysis cap "
                             f"of {max_vision_listings}; remaining eligible listings "
                             "will be considered on the next run."
                         )
@@ -717,11 +889,25 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     vision_analyses_started += 1
                     if tier2_only:
                         tier2_analyses_started += 1
-                    vision_result = await asyncio.to_thread(
-                        vision.analyze,
-                        listing,
-                        targets,
-                    )
+                        vision_result = await asyncio.to_thread(
+                            vision.analyze_with_overviews,
+                            listing,
+                            targets,
+                            preferred_image_indexes=(
+                                screening_result.relevant_image_indexes
+                                if screening_result
+                                else []
+                            ),
+                            maximum_overview_images=int(
+                                tier2_cfg.get("detailed_max_overview_images", 4)
+                            ),
+                        )
+                    else:
+                        vision_result = await asyncio.to_thread(
+                            vision.analyze,
+                            listing,
+                            targets,
+                        )
 
                     raw_eligible = [
                         card
@@ -778,9 +964,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         ),
                     )
                     assessments.append(assessment)
-                    if tier2_only and (
-                        assessment.qualifies or assessment.provisional_qualifies
-                    ):
+                    if tier2_only and vision_result.target_present:
                         tier2_match_count += 1
 
                     if test_mode:
@@ -963,6 +1147,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 prefiltered_out=prefiltered_out,
                 hydrated=hydrated_count,
                 tier2_selected=tier2_selected_count,
+                tier2_era_selected=tier2_era_selected_count,
+                tier2_generic_selected=tier2_generic_selected_count,
+                tier2_screened=tier2_screened_count,
+                tier2_era_screened=tier2_era_screened_count,
+                tier2_generic_screened=tier2_generic_screened_count,
+                tier2_probable=tier2_probable_count,
                 tier2_analysed=tier2_analyses_started,
                 tier2_held=tier2_held_count,
                 tier2_non_lot_filtered=tier2_non_lot_filtered,
@@ -984,15 +1174,21 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             LOGGER.exception("Could not send the Discord scan-completion summary")
 
     LOGGER.info(
-        "Completed: %d discovered, %d Tier 2 candidates, %d Tier 2 analysed, "
-        "%d Tier 2 non-lots filtered, %d Tier 2 matches, "
-        "%d filtered before Gemini, %d assessments, %d strict qualifying, "
-        "%d provisional, %d deal alerts, %d test alerts, %d Gemini requests%s",
+        "Completed: %d discovered, %d Tier 2 candidates (%d era/set, %d generic), "
+        "%d screened, %d probable, %d detailed, %d confirmed target matches, "
+        "%d Tier 2 non-lots filtered, %d held, %d filtered before Gemini, "
+        "%d assessments, %d strict qualifying, %d provisional, %d deal alerts, "
+        "%d test alerts, %d Gemini requests%s",
         discovered_count,
         tier2_selected_count,
+        tier2_era_selected_count,
+        tier2_generic_selected_count,
+        tier2_screened_count,
+        tier2_probable_count,
         tier2_analyses_started,
-        tier2_non_lot_filtered,
         tier2_match_count,
+        tier2_non_lot_filtered,
+        tier2_held_count,
         prefiltered_out,
         len(assessments),
         strict_count,

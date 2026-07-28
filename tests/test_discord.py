@@ -180,7 +180,13 @@ def test_scan_summary_reports_zero_alert_completed_run():
         prefiltered_out=58,
         hydrated=10,
         tier2_selected=8,
-        tier2_analysed=5,
+        tier2_era_selected=5,
+        tier2_generic_selected=3,
+        tier2_screened=6,
+        tier2_era_screened=4,
+        tier2_generic_screened=2,
+        tier2_probable=2,
+        tier2_analysed=2,
         tier2_held=3,
         tier2_non_lot_filtered=4,
         tier2_matches=2,
@@ -201,11 +207,14 @@ def test_scan_summary_reports_zero_alert_completed_run():
     assert embed["title"] == "SENDICO SCAN COMPLETED"
     listings = next(field for field in embed["fields"] if field["name"] == "Listings")
     assert "Tier 2 candidates: **8**" in listings["value"]
-    assert "Tier 2 analysed: **5**" in listings["value"]
-    assert "Tier 2 rejected as non-lot: **4**" in listings["value"]
-    assert "Tier 2 held after cap: **3**" in listings["value"]
+    assert "(5 era/set, 3 generic)" in listings["value"]
+    assert "Screened: **6**" in listings["value"]
+    assert "Probable targets: **2**" in listings["value"]
+    assert "Detailed analyses: **2**" in listings["value"]
+    assert "Rejected as non-lot: **4**" in listings["value"]
+    assert "Held after caps: **3**" in listings["value"]
     results = next(field for field in embed["fields"] if field["name"] == "Results")
-    assert "Tier 2 lot matches: **2**" in results["value"]
+    assert "Confirmed Tier 2 targets: **2**" in results["value"]
     assert "Deal alerts sent: **0**" in results["value"]
 
 

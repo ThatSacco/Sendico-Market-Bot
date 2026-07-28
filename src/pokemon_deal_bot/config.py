@@ -91,19 +91,39 @@ def watchlist_search_terms(targets: list[WatchCard]) -> list[str]:
     return list(dict.fromkeys(term.strip() for term in terms if term.strip()))
 
 
-def watchlist_lot_search_terms(targets: list[WatchCard]) -> list[str]:
-    """Return optional Tier 2 Pokemon-name-plus-lot search terms.
+def _unique_terms(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(term.strip() for term in values if term.strip()))
 
-    These terms are kept separate from the normal watchlist searches so the
-    scanner can cap broad lot candidates without limiting exact-card results.
+
+def watchlist_era_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return higher-priority Tier 2 set/era lot searches."""
+    return _unique_terms(
+        [term for target in targets for term in target.era_lot_search_terms]
+    )
+
+
+def watchlist_generic_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return broad Tier 2 Pokemon-lot searches.
+
+    ``lot_search_terms`` remains a backwards-compatible alias and is treated as
+    generic when the new split fields are not used.
     """
-    return list(
-        dict.fromkeys(
-            term.strip()
+    return _unique_terms(
+        [
+            term
             for target in targets
-            for term in target.lot_search_terms
-            if term.strip()
-        )
+            for term in [*target.generic_lot_search_terms, *target.lot_search_terms]
+        ]
+    )
+
+
+def watchlist_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return all Tier 2 terms for backwards-compatible callers."""
+    return _unique_terms(
+        [
+            *watchlist_era_lot_search_terms(targets),
+            *watchlist_generic_lot_search_terms(targets),
+        ]
     )
 
 

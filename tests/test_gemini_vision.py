@@ -227,3 +227,153 @@ def test_gemini_request_budget_is_enforced(monkeypatch):
 
     with pytest.raises(VisionRunBudgetReached):
         analyzer._generate(_parts(analyzer))
+
+
+def _interaction_response(payload: dict, *, model: str = "gemini-3.5-flash-lite") -> httpx.Response:
+    import json
+
+    return httpx.Response(
+        200,
+        json={
+            "id": "screening-interaction",
+            "status": "completed",
+            "usage": {
+                "total_input_tokens": 50,
+                "total_output_tokens": 10,
+                "total_tokens": 65,
+            },
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [
+                        {"type": "text", "text": json.dumps(payload)}
+                    ],
+                }
+            ],
+            "model": model,
+        },
+    )
+
+
+def _jpeg_bytes() -> bytes:
+    import io
+    from PIL import Image
+
+    output = io.BytesIO()
+    Image.new("RGB", (640, 480), "white").save(output, format="JPEG")
+    return output.getvalue()
+
+
+def test_tier2_screening_uses_flash_lite_and_multiple_overviews(monkeypatch):
+    from types import SimpleNamespace
+
+    from pokemon_deal_bot.image_processing import DownloadedImage
+    from pokemon_deal_bot.models import SendicoListing, WatchCard
+
+    analyzer = _analyzer()
+    images = [
+        DownloadedImage(index, f"https://example.test/{index}.jpg", "image/jpeg", _jpeg_bytes())
+        for index in range(1, 6)
+    ]
+    candidates = {
+        1: [SimpleNamespace(quality_score=1.0)],
+        2: [SimpleNamespace(quality_score=1.0) for _ in range(5)],
+        3: [SimpleNamespace(quality_score=1.0) for _ in range(3)],
+        4: [SimpleNamespace(quality_score=1.0) for _ in range(2)],
+        5: [],
+    }
+    monkeypatch.setattr(analyzer, "_download_images", lambda urls: images)
+    monkeypatch.setattr(analyzer, "_detect_candidates_by_image", lambda downloaded: candidates)
+
+    captured: dict = {}
+
+    def fake_post(url, **kwargs):
+        captured["payload"] = kwargs["json"]
+        return _interaction_response(
+            {
+                "target_likely_present": True,
+                "confidence": 0.68,
+                "relevant_image_indexes": [2, 3],
+                "reason": "Artwork resembles the exact target.",
+            }
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    listing = SendicoListing(
+        code="lot",
+        url="https://example.test/lot",
+        title="Pokemon XY card lot",
+        price_yen=5000,
+        image_urls=[image.url for image in images],
+    )
+    target = WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        japanese_name="デンリュウEX",
+        set_name="Bandit Ring",
+        set_code="XY7",
+        card_number="027/081",
+    )
+
+    result = analyzer.screen_listing(
+        listing,
+        [target],
+        screening_models=["gemini-3.5-flash-lite", "gemini-3.6-flash"],
+        maximum_overview_images=4,
+    )
+
+    assert result.target_likely_present is True
+    assert result.confidence == pytest.approx(0.68)
+    assert result.relevant_image_indexes == [2, 3]
+    assert result.inspected_image_indexes == [1, 2, 3, 4]
+    assert result.model == "gemini-3.5-flash-lite"
+    assert captured["payload"]["model"] == "gemini-3.5-flash-lite"
+    assert captured["payload"]["generation_config"]["thinking_level"] == "minimal"
+    assert sum(item["type"] == "image" for item in captured["payload"]["input"]) == 4
+
+
+def test_multi_overview_crop_selection_keeps_unique_cards_across_images(monkeypatch):
+    from types import SimpleNamespace
+
+    from pokemon_deal_bot.image_processing import DownloadedImage
+
+    analyzer = _analyzer()
+    downloaded = [
+        DownloadedImage(1, "https://example.test/1.jpg", "image/jpeg", b"a"),
+        DownloadedImage(2, "https://example.test/2.jpg", "image/jpeg", b"b"),
+    ]
+    first = SimpleNamespace(
+        source_image_index=1,
+        data=b"first",
+        perceptual_hash=0b0000,
+        quality_score=1.0,
+    )
+    duplicate_better = SimpleNamespace(
+        source_image_index=2,
+        data=b"duplicate-better",
+        perceptual_hash=0b0001,
+        quality_score=2.0,
+    )
+    unique = SimpleNamespace(
+        source_image_index=2,
+        data=b"unique",
+        perceptual_hash=(1 << 63),
+        quality_score=1.5,
+    )
+    monkeypatch.setattr(
+        analyzer,
+        "_detect_candidates_by_image",
+        lambda images: {1: [first], 2: [duplicate_better, unique]},
+    )
+
+    crops, indexes, duplicates = analyzer._extract_multi_overview_crops(
+        downloaded,
+        preferred_image_indexes=[2],
+        maximum_overview_images=2,
+    )
+
+    assert indexes == [2, 1]
+    assert len(crops) == 2
+    assert duplicates == 1
+    assert {crop.data for crop in crops} == {b"duplicate-better", b"unique"}

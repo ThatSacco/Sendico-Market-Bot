@@ -241,6 +241,12 @@ def build_scan_summary_embed(
     prefiltered_out: int,
     hydrated: int,
     tier2_selected: int = 0,
+    tier2_era_selected: int = 0,
+    tier2_generic_selected: int = 0,
+    tier2_screened: int = 0,
+    tier2_era_screened: int = 0,
+    tier2_generic_screened: int = 0,
+    tier2_probable: int = 0,
     tier2_analysed: int = 0,
     tier2_held: int = 0,
     tier2_non_lot_filtered: int = 0,
@@ -277,10 +283,14 @@ def build_scan_summary_embed(
                 "name": "Listings",
                 "value": (
                     f"Found: **{discovered}**\n"
-                    f"Tier 2 candidates: **{tier2_selected}**\n"
-                    f"Tier 2 analysed: **{tier2_analysed}**\n"
-                    f"Tier 2 rejected as non-lot: **{tier2_non_lot_filtered}**\n"
-                    f"Tier 2 held after cap: **{tier2_held}**\n"
+                    f"Tier 2 candidates: **{tier2_selected}** "
+                    f"({tier2_era_selected} era/set, {tier2_generic_selected} generic)\n"
+                    f"Screened: **{tier2_screened}** "
+                    f"({tier2_era_screened} era/set, {tier2_generic_screened} generic)\n"
+                    f"Probable targets: **{tier2_probable}**\n"
+                    f"Detailed analyses: **{tier2_analysed}**\n"
+                    f"Rejected as non-lot: **{tier2_non_lot_filtered}**\n"
+                    f"Held after caps: **{tier2_held}**\n"
                     f"Filtered before Gemini: **{prefiltered_out}**\n"
                     f"Detail pages checked: **{hydrated}**"
                 ),
@@ -311,7 +321,7 @@ def build_scan_summary_embed(
                     f"Assessments: **{assessments}**\n"
                     f"Strict matches: **{strict_matches}**\n"
                     f"Provisional matches: **{provisional_matches}**\n"
-                    f"Tier 2 lot matches: **{tier2_matches}**\n"
+                    f"Confirmed Tier 2 targets: **{tier2_matches}**\n"
                     f"Deal alerts sent: **{alerts_sent}**"
                 ),
                 "inline": False,

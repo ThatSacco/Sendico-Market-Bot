@@ -6,6 +6,8 @@ import yaml
 from pokemon_deal_bot.config import (
     AppConfig,
     load_watchlist,
+    watchlist_era_lot_search_terms,
+    watchlist_generic_lot_search_terms,
     watchlist_lot_search_terms,
     watchlist_search_terms,
     watchlist_signature,
@@ -27,9 +29,9 @@ def test_watchlist_supports_multiple_active_modes(tmp_path: Path):
                         "english_name": "Ampharos EX",
                         "card_number": "027/081",
                         "search_terms": ["Ampharos EX 027/081"],
-                        "lot_search_terms": [
-                            "デンリュウ まとめ",
-                            "Ampharos Pokemon card lot",
+                        "era_lot_search_terms": ["XY7 まとめ売り"],
+                        "generic_lot_search_terms": [
+                            "ポケカ まとめ売り",
                         ],
                     },
                     {
@@ -51,9 +53,11 @@ def test_watchlist_supports_multiple_active_modes(tmp_path: Path):
         "Ampharos EX 027/081",
         "Tyranitar Neo Japanese",
     ]
+    assert watchlist_era_lot_search_terms(cards) == ["XY7 まとめ売り"]
+    assert watchlist_generic_lot_search_terms(cards) == ["ポケカ まとめ売り"]
     assert watchlist_lot_search_terms(cards) == [
-        "デンリュウ まとめ",
-        "Ampharos Pokemon card lot",
+        "XY7 まとめ売り",
+        "ポケカ まとめ売り",
     ]
 
 
@@ -165,21 +169,28 @@ def test_watchlist_rejects_pricecharting_search_page_as_direct_reference():
         )
 
 
-def test_repository_watchlist_uses_generic_tier2_lot_queries():
+def test_repository_watchlist_splits_era_and_generic_lot_queries():
     root = Path(__file__).resolve().parents[1]
     data = yaml.safe_load((root / "data" / "watchlist.yaml").read_text(encoding="utf-8"))
     ampharos = next(card for card in data["cards"] if card["id"] == "ampharos_ex_xy7_027")
-    terms = ampharos["lot_search_terms"]
-    assert "ポケカ まとめ売り" in terms
-    assert "ポケカ XY まとめ売り" in terms
-    assert all("デンリュウ" not in term and "Ampharos" not in term for term in terms)
+    era_terms = ampharos["era_lot_search_terms"]
+    generic_terms = ampharos["generic_lot_search_terms"]
+    assert "XY7 まとめ売り" in era_terms
+    assert "バンデットリング まとめ売り" in era_terms
+    assert "ポケカ まとめ売り" in generic_terms
+    assert all("デンリュウ" not in term and "Ampharos" not in term for term in [*era_terms, *generic_terms])
 
 
-def test_repository_config_runs_tier2_only_and_requires_lot_evidence():
+def test_repository_config_uses_two_pass_tier2_screening():
     root = Path(__file__).resolve().parents[1]
     data = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
     tier2 = data["sendico"]["tier2_lot_search"]
     assert tier2["enabled"] is True
     assert tier2["run_standard_watchlist_searches"] is False
     assert tier2["require_strong_lot_evidence"] is True
-    assert tier2["max_analyses_per_run"] == 20
+    assert tier2["screening_model"] == "gemini-3.5-flash-lite"
+    assert tier2["max_screenings_per_run"] == 100
+    assert tier2["era_set_screening_limit"] == 70
+    assert tier2["generic_screening_limit"] == 30
+    assert tier2["max_detailed_analyses_per_run"] == 20
+
