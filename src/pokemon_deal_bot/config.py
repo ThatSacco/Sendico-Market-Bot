@@ -30,7 +30,12 @@ class AppConfig:
         return os.getenv("DISCORD_WEBHOOK_URL")
 
     @property
+    def gemini_api_key(self) -> str | None:
+        return os.getenv("GEMINI_API_KEY")
+
+    @property
     def groq_api_key(self) -> str | None:
+        """Legacy compatibility for older checkouts; production uses Gemini."""
         return os.getenv("GROQ_API_KEY")
 
     def path(self, relative: str) -> Path:

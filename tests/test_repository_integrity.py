@@ -7,10 +7,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_scan_workflow_uses_groq_and_weekly_sydney_schedule() -> None:
+def test_scan_workflow_uses_gemini_and_weekly_sydney_schedule() -> None:
     workflow = (ROOT / ".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    assert "GROQ_API_KEY" in workflow
+    assert "GEMINI_API_KEY" in workflow
+    assert "GROQ_API_KEY" not in workflow
     assert "OPENAI_API_KEY" not in workflow
     assert 'cron: "0 13 * * 3"' in workflow
     assert 'cron: "0 14 * * 3"' in workflow
@@ -46,9 +47,15 @@ def test_reliability_guards_are_enabled_in_default_config() -> None:
     config = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
 
     assert config["sendico"]["prefilter_watchlist_relevance"] is True
-    assert config["vision"]["max_listing_analyses_per_run"] == 10
-    assert config["vision"]["max_groq_requests_per_run"] == 12
-    assert config["vision"]["auto_discover_models"] is True
-    assert config["vision"]["max_model_attempts_per_request"] >= 2
-    assert config["vision"]["models"]
+    assert config["vision"]["provider"] == "gemini"
+    assert config["vision"]["max_listing_analyses_per_run"] == 100
+    assert config["vision"]["max_vision_requests_per_run"] == 150
+    assert config["vision"]["max_model_attempts_per_request"] == 2
+    assert config["vision"]["models"] == [
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+    ]
+    assert config["vision"]["api_version"] == "v1beta"
+    assert config["vision"]["api_revision"] == "2026-05-20"
+    assert config["vision"]["thinking_level"] == "low"
     assert config["discord"]["send_completion_summary"] is True

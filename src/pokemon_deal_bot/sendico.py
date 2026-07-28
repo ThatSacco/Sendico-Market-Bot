@@ -32,7 +32,7 @@ def is_listing_image_url(url: str, listing_id: str) -> bool:
 
     Sendico detail pages also render recommendation thumbnails for other Mercari
     listings. Those URLs contain a different ``m########`` identifier and must
-    never be sent to Groq as though they were photos of the current listing.
+    never be sent to Gemini as though they were photos of the current listing.
     """
     candidate = unquote(str(url or "").strip())
     code = str(listing_id or "").strip().lower()

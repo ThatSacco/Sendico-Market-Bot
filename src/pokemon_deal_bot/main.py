@@ -25,11 +25,8 @@ from .pricecharting import PriceChartingClient
 from .reporting import write_reports
 from .sendico import SendicoMercariScanner
 from .state import StateStore
-from .vision import (
-    LotVisionAnalyzer,
-    VisionRateLimitError,
-    VisionRunBudgetReached,
-)
+from .gemini_vision import GeminiLotVisionAnalyzer
+from .vision import VisionRateLimitError, VisionRunBudgetReached
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +61,7 @@ def _candidate_relevance_score(
     listing: SendicoListing,
     targets,
 ) -> int:
-    """Score a search result before spending a Groq request on it.
+    """Score a search result before spending a Gemini request on it.
 
     The filter is intentionally based on explicit names, printed numbers and set
     references. A result with no local evidence for any active watchlist rule is
@@ -162,14 +159,13 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     legacy_model = str(vision_cfg.get("model") or "").strip()
     if legacy_model and legacy_model not in configured_models:
         configured_models.append(legacy_model)
-    auto_discover_models = bool(vision_cfg.get("auto_discover_models", True))
-    model_pool_label = ", ".join(configured_models) or "automatic discovery"
-    if auto_discover_models:
-        model_pool_label += " + account discovery"
+    if not configured_models:
+        configured_models = ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
+    model_pool_label = ", ".join(configured_models)
 
-    if vision_cfg.get("enabled", True) and not config.groq_api_key:
+    if vision_cfg.get("enabled", True) and not config.gemini_api_key:
         raise RuntimeError(
-            "GROQ_API_KEY is required to identify cards in lot images"
+            "GEMINI_API_KEY is required to identify cards in lot images"
         )
 
     seller_cfg = config.raw.get("seller_verification", {})
@@ -226,20 +222,33 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             fx_cfg.get("minimum_match_confidence", 0.95)
         ),
     )
-    vision = LotVisionAnalyzer(
-        api_key=config.groq_api_key or "",
+    vision = GeminiLotVisionAnalyzer(
+        api_key=config.gemini_api_key or "",
         model=legacy_model or None,
         models=configured_models,
-        auto_discover_models=auto_discover_models,
         max_model_attempts_per_request=int(
-            vision_cfg.get("max_model_attempts_per_request", 8)
+            vision_cfg.get("max_model_attempts_per_request", 2)
         ),
-        service_tier=str(vision_cfg.get("service_tier", "on_demand")),
+        thinking_level=str(vision_cfg.get("thinking_level", "low")),
+        max_retries_per_model=int(
+            vision_cfg.get("max_retries_per_model", 2)
+        ),
+        retry_base_seconds=float(
+            vision_cfg.get("retry_base_seconds", 2.0)
+        ),
+        retry_max_seconds=float(
+            vision_cfg.get("retry_max_seconds", 30.0)
+        ),
+        api_version=str(vision_cfg.get("api_version", "v1beta")),
+        api_revision=str(vision_cfg.get("api_revision", "2026-05-20")),
+        request_timeout_seconds=float(
+            vision_cfg.get("request_timeout_seconds", 240.0)
+        ),
         max_images=int(vision_cfg["max_images_per_listing"]),
         max_local_crops=int(vision_cfg.get("max_local_crops_per_listing", 40)),
         crop_batch_size=int(vision_cfg.get("crop_batch_size", 4)),
         request_spacing_seconds=float(
-            vision_cfg.get("request_spacing_seconds", 65.0)
+            vision_cfg.get("request_spacing_seconds", 1.0)
         ),
         max_completion_tokens=int(
             vision_cfg.get("max_completion_tokens", 1600)
@@ -279,7 +288,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             vision_cfg.get("crop_padding_percent", 0.025)
         ),
         max_requests_per_run=int(
-            vision_cfg.get("max_groq_requests_per_run", 12)
+            vision_cfg.get("max_vision_requests_per_run", 150)
         ),
     )
     state = StateStore(config.path("data/seen.json"))
@@ -387,7 +396,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 if prefilter_enabled and score <= 0:
                     prefiltered_out += 1
                     LOGGER.info(
-                        "Skipping search result %s before hydration/Groq: no "
+                        "Skipping search result %s before hydration/Gemini: no "
                         "watchlist name, number or set evidence in its result text",
                         candidate.code,
                     )
@@ -402,7 +411,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
 
             LOGGER.info(
                 "Search found %d unique listing(s); %d passed local relevance "
-                "filtering and %d were filtered before Groq",
+                "filtering and %d were filtered before Gemini",
                 discovered_count,
                 len(listings_to_process),
                 prefiltered_out,
@@ -480,7 +489,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         and vision_analyses_started >= max_vision_listings
                     ):
                         stop_reason = (
-                            "Stopped at the configured Groq listing-analysis cap "
+                            "Stopped at the configured Gemini listing-analysis cap "
                             f"of {max_vision_listings}; remaining eligible listings "
                             "will be considered on the next run."
                         )
@@ -642,16 +651,16 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 except VisionRunBudgetReached as exc:
                     stop_reason = str(exc)
                     LOGGER.info(
-                        "Stopping before another Groq request would exceed the "
+                        "Stopping before another Gemini request would exceed the "
                         "configured per-run budget: %s",
                         exc,
                     )
                     break
 
                 except VisionRateLimitError as exc:
-                    stop_reason = f"Groq rate limit reached: {exc}"
+                    stop_reason = f"Gemini capacity or rate limit reached: {exc}"
                     LOGGER.warning(
-                        "Groq rate limit reached; recording this attempt and "
+                        "Gemini capacity or rate limit reached; recording this attempt and "
                         "stopping the run so remaining listings can resume next "
                         "week: %s",
                         exc,
@@ -737,17 +746,18 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 provisional_matches=provisional_count,
                 alerts_sent=alerts_sent,
                 errors=processing_errors,
-                groq_requests=vision.requests_sent,
-                groq_models=vision.models_used_summary,
+                vision_requests=vision.requests_sent,
+                vision_models=vision.models_used_summary,
+                vision_usage=vision.usage_summary,
                 stop_reason=stop_reason,
             )
         except Exception:
             LOGGER.exception("Could not send the Discord scan-completion summary")
 
     LOGGER.info(
-        "Completed: %d discovered, %d filtered before Groq, %d assessments, "
+        "Completed: %d discovered, %d filtered before Gemini, %d assessments, "
         "%d strict qualifying, %d provisional, %d deal alerts, %d test alerts, "
-        "%d Groq requests%s",
+        "%d Gemini requests%s",
         discovered_count,
         prefiltered_out,
         len(assessments),

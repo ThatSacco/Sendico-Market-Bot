@@ -20,19 +20,19 @@ LOGGER = logging.getLogger(__name__)
 
 
 class VisionRateLimitError(RuntimeError):
-    """Raised when Groq asks the scanner to stop because quota is unavailable."""
+    """Raised when the vision provider asks the scanner to stop because capacity is unavailable."""
 
 
 class VisionRequestTooLargeError(VisionRateLimitError):
-    """Raised when one Groq request exceeds the model or account token budget."""
+    """Raised when one vision request exceeds the model or account token budget."""
 
 
 class VisionRunBudgetReached(RuntimeError):
-    """Raised before another Groq request would exceed this scan run's budget."""
+    """Raised before another vision request would exceed this scan run's budget."""
 
 
 class VisionModelPoolExhaustedError(VisionRateLimitError):
-    """Raised when no configured or discovered Groq model can handle the request."""
+    """Raised when no configured vision model can handle the request."""
 
 
 @dataclass(slots=True)
@@ -285,7 +285,7 @@ def _set_matches(card: IdentifiedCard, target: WatchCard) -> bool:
         if not restrictions:
             return True
         candidates = [value for value in [card.set_code, card.set_name] if value]
-        # Card number plus exact Pokemon name is still useful when Groq cannot
+        # Card number plus exact Pokemon name is still useful when the model cannot
         # read the set. Reject only when it supplied conflicting set information.
         if not candidates:
             return True
@@ -450,7 +450,7 @@ def _merge_cards(cards: list[IdentifiedCard]) -> list[IdentifiedCard]:
 
 
 class LotVisionAnalyzer:
-    """Identify locally cropped cards with small, paced Groq vision requests."""
+    """Identify locally cropped cards with small, paced vision requests."""
 
     def __init__(
         self,
@@ -550,7 +550,7 @@ class LotVisionAnalyzer:
     def analyze(self, listing: SendicoListing, targets: list[WatchCard]) -> VisionResult:
         downloaded = self._download_images(listing.image_urls[: self.max_images])
         if not downloaded:
-            raise RuntimeError("No listing images could be downloaded for Groq analysis")
+            raise RuntimeError("No listing images could be downloaded for Gemini analysis")
         LOGGER.info("Downloaded %d Sendico listing image(s)", len(downloaded))
 
         crops = self.extractor.extract(downloaded)
@@ -563,7 +563,7 @@ class LotVisionAnalyzer:
                 unidentified_card_count=0,
                 notes=[
                     "Local preprocessing could not isolate any card-shaped regions; "
-                    "no Groq request was sent."
+                    "no Gemini request was sent."
                 ],
             )
 
@@ -577,7 +577,7 @@ class LotVisionAnalyzer:
         ):
             remaining = max(0, self.max_requests_per_run - self.requests_sent)
             raise VisionRunBudgetReached(
-                "Groq request budget reached before this listing: "
+                "Gemini request budget reached before this listing: "
                 f"{remaining} request(s) remain, but {len(batches)} are planned"
             )
         identified: list[IdentifiedCard] = []
@@ -586,7 +586,7 @@ class LotVisionAnalyzer:
 
         for batch_index, batch in enumerate(batches, start=1):
             LOGGER.info(
-                "Sending local crop batch %d/%d to Groq (%d card crop(s))",
+                "Sending local crop batch %d/%d to Gemini (%d card crop(s))",
                 batch_index,
                 len(batches),
                 len(batch),
@@ -631,8 +631,8 @@ class LotVisionAnalyzer:
             unidentified_card_count=unidentified,
             notes=[
                 f"Local OpenCV preprocessing isolated {len(crops)} unique physical card crop(s).",
-                f"Groq identification used {completed_requests} small single-image request(s) across {len(batches)} planned batch(es).",
-                "Watchlist matching was applied locally after identification; target details were not added to the Groq prompt.",
+                f"Gemini identification used {completed_requests} small single-image request(s) across {len(batches)} planned batch(es).",
+                "Watchlist matching was applied locally after identification; target details were not added to the Gemini prompt.",
                 "Physical quantity was anchored to one listing photo; alternate views could improve a matching crop but could not add quantity.",
                 *(
                     [
@@ -660,7 +660,7 @@ class LotVisionAnalyzer:
             if len(crops) > 1:
                 midpoint = len(crops) // 2
                 LOGGER.warning(
-                    "Groq rejected a %d-card request as too large; splitting it into %d and %d cards",
+                    "Gemini rejected a %d-card request as too large; splitting it into %d and %d cards",
                     len(crops),
                     midpoint,
                     len(crops) - midpoint,
@@ -680,7 +680,7 @@ class LotVisionAnalyzer:
                 return left_results + right_results, left_count + right_count
             if not compact:
                 LOGGER.warning(
-                    "Groq rejected a one-card sheet as too large; retrying with a smaller compressed sheet"
+                    "Gemini rejected a one-card sheet as too large; retrying with a smaller compressed sheet"
                 )
                 return self._identify_with_size_fallback(
                     listing,
@@ -689,7 +689,7 @@ class LotVisionAnalyzer:
                     compact=True,
                 )
             raise VisionRateLimitError(
-                "Groq rejected even the compact one-card request as larger than the available token budget"
+                "Gemini rejected even the compact one-card request as larger than the available token budget"
             )
 
     def _request_batch(

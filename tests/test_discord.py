@@ -187,7 +187,9 @@ def test_scan_summary_reports_zero_alert_completed_run():
         provisional_matches=0,
         alerts_sent=0,
         errors=0,
-        groq_requests=7,
+        vision_requests=7,
+        vision_models="gemini-3.6-flash (7)",
+        vision_usage="input 1,000; output 200; thinking 50; total 1,250 tokens",
         stop_reason=None,
     )
 
@@ -196,7 +198,7 @@ def test_scan_summary_reports_zero_alert_completed_run():
     assert "Deal alerts sent: **0**" in results["value"]
 
 
-def test_scan_summary_marks_groq_quota_pause():
+def test_scan_summary_marks_gemini_capacity_pause():
     from pokemon_deal_bot.discord import build_scan_summary_embed
 
     embed = build_scan_summary_embed(
@@ -211,8 +213,10 @@ def test_scan_summary_marks_groq_quota_pause():
         provisional_matches=0,
         alerts_sent=0,
         errors=0,
-        groq_requests=1,
-        stop_reason="Groq rate limit reached",
+        vision_requests=1,
+        vision_models="gemini-3.6-flash (1)",
+        vision_usage="input 100; output 20; thinking 5; total 125 tokens",
+        stop_reason="Gemini capacity or rate limit reached",
     )
     assert embed["title"] == "SENDICO SCAN PAUSED"
-    assert "Groq rate limit" in embed["description"]
+    assert "Gemini capacity" in embed["description"]

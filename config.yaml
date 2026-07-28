@@ -27,7 +27,7 @@ sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
 
   # Zero keeps every result returned by Sendico. Search-result text is then
-  # checked locally against the watchlist before any detail page or Groq call.
+  # checked locally against the watchlist before any detail page or Gemini call.
   max_results_per_search: 0
   max_listings_per_run: 0
   prefilter_watchlist_relevance: true
@@ -47,27 +47,33 @@ sendico:
 
 vision:
   enabled: true
-  provider: "groq"
+  provider: "gemini"
 
-  # Ordered preferred model pool. You may add any Groq model ID enabled for
-  # your account. The bot automatically moves to the next model when one is
-  # rate-limited, unavailable, deprecated, or rejects image input.
+  # Stable paid Gemini models in preferred order. Gemini 3.6 Flash is used
+  # first for card identification; Flash-Lite provides a lower-cost fallback
+  # if the primary model is temporarily rate-limited or unavailable.
   models:
-    - "qwen/qwen3.6-27b"
-
-  # Query GET /openai/v1/models at the first vision request and append only
-  # model IDs that look image-capable. Text-only models are no longer tested
-  # after a vision quota error, avoiding the seven wasted calls seen in the run.
-  auto_discover_models: true
-  max_model_attempts_per_request: 8
-  service_tier: "on_demand"
+    - "gemini-3.6-flash"
+    - "gemini-3.5-flash-lite"
 
   # Legacy single-model key retained for compatibility with older checkouts.
-  # The models list above takes priority.
-  model: "qwen/qwen3.6-27b"
+  # The ordered models list above takes priority.
+  model: "gemini-3.6-flash"
+  # Interactions API version and revision used for multimodal REST calls.
+  # Requests are stateless (`store: false`) and do not retain conversation history.
+  api_version: "v1beta"
+  api_revision: "2026-05-20"
+  thinking_level: "low"
+
+  # Retry temporary Gemini capacity errors before moving to the fallback model.
+  max_model_attempts_per_request: 2
+  max_retries_per_model: 2
+  retry_base_seconds: 2.0
+  retry_max_seconds: 30.0
+  request_timeout_seconds: 240
 
   # Download up to 12 Sendico photos, then detect and crop card-shaped regions
-  # locally with OpenCV. Overview photos are no longer sent to Groq.
+  # locally with OpenCV. Only the compact contact sheet is sent to Gemini.
   max_images_per_listing: 12
   max_local_crops_per_listing: 40
   local_analysis_max_dimension_px: 2200
@@ -86,17 +92,16 @@ vision:
   # identical physical cards that appear together in the same overview photo.
   duplicate_phash_distance: 10
 
-  # Protect the free Groq allowance. At most ten listing analyses and twelve
-  # Groq requests are started in one scan. Already-seen listings do not count.
-  max_listing_analyses_per_run: 10
-  max_groq_requests_per_run: 12
+  # Paid-capacity safeguards. These are deliberately much higher than the old
+  # Groq free-tier limits while still preventing an accidental unlimited run.
+  max_listing_analyses_per_run: 100
+  max_vision_requests_per_run: 150
 
-  # Each Groq request contains one small JPEG contact sheet. Four crops per
-  # request is deliberately conservative for the 8,000 TPM free-tier limit.
-  # Requests are spaced beyond one minute so separate batches do not overlap in
-  # the same TPM window. A 413 request-too-large response is split automatically.
+  # Each request contains one small JPEG contact sheet. Gemini paid capacity
+  # does not require a one-minute pause, so requests are spaced by one second.
+  # Oversized batches are split automatically.
   crop_batch_size: 4
-  request_spacing_seconds: 65
+  request_spacing_seconds: 1.0
   contact_sheet_max_dimension_px: 1100
   contact_sheet_jpeg_quality: 82
   max_completion_tokens: 1600
@@ -124,5 +129,5 @@ discord:
   username: "Pokemon Deal Scout"
   enabled: true
   # Send a brief result summary after every run, including zero-match and
-  # Groq-quota-paused scans.
+  # Gemini-capacity-paused scans.
   send_completion_summary: true

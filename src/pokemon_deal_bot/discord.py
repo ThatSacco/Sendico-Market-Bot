@@ -248,8 +248,9 @@ def build_scan_summary_embed(
     provisional_matches: int,
     alerts_sent: int,
     errors: int,
-    groq_requests: int,
-    groq_models: str = "None completed",
+    vision_requests: int,
+    vision_models: str = "None completed",
+    vision_usage: str = "No token usage reported",
     stop_reason: str | None = None,
 ) -> dict:
     """Build a compact completion summary for every production scan."""
@@ -271,7 +272,7 @@ def build_scan_summary_embed(
                 "name": "Listings",
                 "value": (
                     f"Found: **{discovered}**\n"
-                    f"Filtered before Groq: **{prefiltered_out}**\n"
+                    f"Filtered before Gemini: **{prefiltered_out}**\n"
                     f"Detail pages checked: **{hydrated}**"
                 ),
                 "inline": True,
@@ -285,11 +286,12 @@ def build_scan_summary_embed(
                 "inline": True,
             },
             {
-                "name": "Groq",
+                "name": "Gemini",
                 "value": (
                     f"Listings analysed: **{analysed}**\n"
-                    f"Requests sent: **{groq_requests}**\n"
-                    f"Models used: **{groq_models[:500]}**\n"
+                    f"Requests sent: **{vision_requests}**\n"
+                    f"Models used: **{vision_models[:500]}**\n"
+                    f"Usage: **{vision_usage[:500]}**\n"
                     f"Processing errors: **{errors}**"
                 ),
                 "inline": True,
@@ -338,7 +340,7 @@ def send_discord_test_start(
         ),
         "color": 0x5865F2,
         "fields": [
-            {"name": "Groq model pool", "value": model[:1000], "inline": False},
+            {"name": "Gemini model pool", "value": model[:1000], "inline": False},
             {
                 "name": "Maximum listing alerts",
                 "value": str(listing_limit),
@@ -384,7 +386,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
             {
                 "name": "Test status",
                 "value": (
-                    "Restrictions ignored. This confirms Sendico, Groq, pricing "
+                    "Restrictions ignored. This confirms Sendico, Gemini, pricing "
                     "and Discord reached the result stage."
                 ),
                 "inline": False,
@@ -406,7 +408,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                 "inline": True,
             },
             {
-                "name": "Groq listing type",
+                "name": "Gemini listing type",
                 "value": vision.listing_type,
                 "inline": True,
             },
@@ -435,7 +437,7 @@ def build_test_embed(assessment: DealAssessment) -> dict:
                 "inline": False,
             },
             {
-                "name": "Cards identified by Groq",
+                "name": "Cards identified by Gemini",
                 "value": "\n".join(identified_lines)[:1024]
                 or "No cards identified at the configured confidence",
                 "inline": False,
