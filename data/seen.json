@@ -3,37 +3,37 @@
     "url": "https://sendico.com/shop/mercari/catalog/m51902266105",
     "fingerprint": "6913e017629640caf320b649b1b3fe990f52a2886590352c63e2a3a6a9469295",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "last_outcome": "error: All Groq model candidates are rate-limited, unavailable, or incompatible: qwen/qwen3.6-27b: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199860, Requested 4265. Please try again in 29m42s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing | allam-2-7b: messages[0].content must be a string | groq/compound: messages[0].content must be a string | groq/compound-mini: messages[0].content must be a string | llama-3.1-8b-instant: messages[0].content must be a string | llama-3.3-70b-versatile: messages[0].content must be a string | openai/gpt-oss-120b: messages[0].content must be a string | openai/gpt-oss-20b: messages[0].content must be a string",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:21:58.083912+00:00"
+    "last_checked": "2026-07-28T00:32:32.392560+00:00"
   },
   "m59706218310": {
     "url": "https://sendico.com/shop/mercari/catalog/m59706218310",
-    "fingerprint": "3bb362cb79f51e980d5f45b56ea17e794e8437c993f6ef2f907aa355255b3876",
+    "fingerprint": "ec47e1cb137902fe7af2784eebcf61421f888067fc3b2cfa478eff8713b760d9",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 403 from model qwen/qwen3.6-27b: The model `qwen/qwen3.6-27b` is blocked at the project level. Please have a project admin enable this model in the project settings at https://console.groq.com/settings/project/limits",
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:18:42.268649+00:00"
+    "last_checked": "2026-07-28T00:29:19.997248+00:00"
   },
   "m46027044105": {
     "url": "https://sendico.com/shop/mercari/catalog/m46027044105",
     "fingerprint": "806af26b7b7b2aa7f8cc18eb0692904a247608efd6238eb741b3748a8870e166",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 403 from model qwen/qwen3.6-27b: The model `qwen/qwen3.6-27b` is blocked at the project level. Please have a project admin enable this model in the project settings at https://console.groq.com/settings/project/limits",
-    "attempt_count": 1,
+    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:19:47.103922+00:00"
+    "last_checked": "2026-07-28T00:30:24.654471+00:00"
   },
   "m89876449615": {
     "url": "https://sendico.com/shop/mercari/catalog/m89876449615",
     "fingerprint": "4d4a81d2a30cb6b3e06a063caefffbed1d59526eec6e30668bffb5028e63ce7a",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:20:52.484958+00:00"
+    "last_checked": "2026-07-28T00:31:35.518105+00:00"
   },
   "m75471775610": {
     "url": "https://sendico.com/shop/mercari/catalog/m75471775610",
