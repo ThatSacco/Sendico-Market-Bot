@@ -33,18 +33,10 @@ cards:
     # are screened first because they are more likely to contain the target.
     # Generic searches provide broader discovery after the focused pool.
     era_lot_search_terms:
-      - "ポケカ XY まとめ売り"
-      - "ポケモンカード XY 引退品"
-      - "ポケカ EX まとめ売り"
-      - "XY7 まとめ売り"
-      - "バンデットリング まとめ売り"
       - "バンデットリング セット販売"
 
     generic_lot_search_terms:
-      - "ポケカ まとめ売り"
-      - "ポケモンカード まとめ売り"
-      - "ポケカ 引退品"
-      - "ポケカ 大量"
+      - "デンリュウ セット"
 
   # General-search example. Change active to true to search for any Tyranitar
   # across the four main Neo-era sets at the same time as Ampharos EX.
