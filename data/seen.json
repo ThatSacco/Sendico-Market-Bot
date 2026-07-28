@@ -10,12 +10,12 @@
   },
   "m59706218310": {
     "url": "https://sendico.com/shop/mercari/catalog/m59706218310",
-    "fingerprint": "ec47e1cb137902fe7af2784eebcf61421f888067fc3b2cfa478eff8713b760d9",
+    "fingerprint": "3bb362cb79f51e980d5f45b56ea17e794e8437c993f6ef2f907aa355255b3876",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+    "last_outcome": "error: All Groq model candidates are rate-limited, unavailable, or incompatible: qwen/qwen3.6-27b: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197607, Requested 4276. Please try again in 13m33.456s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-28T00:29:19.997248+00:00"
+    "last_checked": "2026-07-28T00:48:44.337332+00:00"
   },
   "m46027044105": {
     "url": "https://sendico.com/shop/mercari/catalog/m46027044105",
