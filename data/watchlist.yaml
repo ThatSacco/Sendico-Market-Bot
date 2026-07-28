@@ -9,7 +9,7 @@
 
 cards:
   - id: ampharos_ex_xy7_027
-    active: false
+    active: true
     match_mode: exact_card
     english_name: "Ampharos EX"
     japanese_name: "デンリュウEX"
@@ -44,7 +44,7 @@ cards:
   # General-search example. Change active to true to search for any Tyranitar
   # across the four main Neo-era sets at the same time as Ampharos EX.
   - id: tyranitar_neo_era
-    active: true
+    active: false
     match_mode: pokemon_general
     english_names:
       - "Tyranitar"
