@@ -5,7 +5,10 @@ import yaml
 
 from pokemon_deal_bot.config import (
     AppConfig,
+    load_config,
+    load_run_limits,
     load_watchlist,
+    validate_run_limits,
     validate_watchlist_for_run,
     watchlist_era_lot_search_terms,
     watchlist_generic_lot_search_terms,
@@ -178,20 +181,64 @@ def test_repository_watchlist_is_the_only_search_source():
             assert card["pricecharting_url"].startswith("https://www.pricecharting.com/game/")
 
 
-def test_repository_config_uses_bounded_two_pass_screening():
+def test_repository_uses_central_run_limits_file():
     root = Path(__file__).resolve().parents[1]
-    data = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
-    sendico = data["sendico"]
+    base = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    assert base["run_limits_file"] == "data/run_limits.yaml"
+    assert base["watchlist_file"] == "data/watchlist.yaml"
+
+    # Tunable caps must not be duplicated in config.yaml.
+    assert "max_results_per_search" not in base["sendico"]
+    assert "max_listings_per_run" not in base["sendico"]
+    assert "max_raw_links_per_search" not in base["sendico"]
+    assert "max_screenings_per_run" not in base["sendico"]["tier2_lot_search"]
+    assert "max_detailed_analyses_per_run" not in base["sendico"]["tier2_lot_search"]
+    assert "max_total_tokens_per_run" not in base["vision"]
+
+    limits = load_run_limits(root / "data/run_limits.yaml")
+    validate_run_limits(limits)
+    effective = load_config(root / "config.yaml")
+    sendico = effective.raw["sendico"]
     tier2 = sendico["tier2_lot_search"]
-    assert sendico["max_results_per_search"] == 25
-    assert sendico["max_listings_per_run"] == 50
-    assert sendico["maximum_scroll_rounds"] == 6
-    assert sendico["use_legacy_config_search_terms"] is False
-    assert sendico["search_terms"] == []
-    assert tier2["enabled"] is True
-    assert tier2["require_strong_lot_evidence"] is True
-    assert tier2["allow_query_only_candidates"] is False
-    assert tier2["screening_model"] == "gemini-3.5-flash-lite"
-    assert tier2["max_screenings_per_run"] == 40
-    assert tier2["max_detailed_analyses_per_run"] == 12
-    assert tier2["detailed_max_overview_images"] == 10
+    vision = effective.raw["vision"]
+
+    assert sendico["max_results_per_search"] == limits["search"]["results_per_term"]
+    assert tier2["max_results_per_search"] == limits["search"]["results_per_term"]
+    assert sendico["max_listings_per_run"] == limits["search"]["total_listings_per_run"]
+    assert tier2["max_screenings_per_run"] == limits["screening"]["max_listings_per_run"]
+    assert tier2["max_detailed_analyses_per_run"] == limits["detailed_analysis"]["max_listings_per_run"]
+    assert vision["max_listing_analyses_per_run"] == limits["detailed_analysis"]["max_listings_per_run"]
+    assert vision["max_total_tokens_per_run"] == limits["token_budget"]["max_total_tokens_per_run"]
+
+
+def test_changing_central_limit_updates_all_legacy_runtime_paths(tmp_path: Path):
+    root = Path(__file__).resolve().parents[1]
+    base = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    limits = yaml.safe_load((root / "data/run_limits.yaml").read_text(encoding="utf-8"))
+    limits["screening"]["max_listings_per_run"] = 77
+    limits["screening"]["focused_lot_limit"] = 77
+    limits["detailed_analysis"]["max_listings_per_run"] = 22
+
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(
+        yaml.safe_dump(base, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    (tmp_path / "data/run_limits.yaml").write_text(
+        yaml.safe_dump(limits, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    effective = load_config(tmp_path / "config.yaml").raw
+    assert effective["sendico"]["tier2_lot_search"]["max_screenings_per_run"] == 77
+    assert effective["sendico"]["tier2_lot_search"]["max_detailed_analyses_per_run"] == 22
+    assert effective["vision"]["max_listing_analyses_per_run"] == 22
+
+
+def test_central_limits_validation_rejects_inconsistent_values():
+    root = Path(__file__).resolve().parents[1]
+    limits = yaml.safe_load((root / "data/run_limits.yaml").read_text(encoding="utf-8"))
+    limits["search"]["raw_links_per_term"] = 5
+    limits["search"]["results_per_term"] = 25
+    with pytest.raises(ValueError, match="raw_links_per_term"):
+        validate_run_limits(limits)

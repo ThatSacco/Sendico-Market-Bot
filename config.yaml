@@ -3,12 +3,15 @@ currency: AUD
 minimum_seller_positive_ratings: 301
 shipping_allowance_aud: 0.0
 
-retry_policy:
-  max_attempts_per_listing: 3
+# All user-adjustable run caps and budgets live in this one file.
+run_limits_file: "data/run_limits.yaml"
+
+# Search targets, PriceCharting references and Sendico search terms live only in
+# data/watchlist.yaml.
+watchlist_file: "data/watchlist.yaml"
 
 test_mode:
   enabled: false
-  max_alerts_per_run: 1
   ignore_seen_state: false
   skip_search_when_direct_urls: true
   direct_listing_urls: []
@@ -19,38 +22,20 @@ seller_verification:
 
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
-
-  # Search wording is controlled exclusively from data/watchlist.yaml.
-  # These values only limit how much marketplace data one run can process.
-  max_results_per_search: 25
-  max_listings_per_run: 50
   prefilter_watchlist_relevance: true
-  max_raw_links_per_search: 60
 
   tier2_lot_search:
     enabled: true
     run_standard_watchlist_searches: true
-    max_results_per_search: 25
     allow_query_only_candidates: false
 
     # Cheap first pass. Only probable target listings proceed to detailed
-    # Gemini 3.6 identification and lot valuation.
+    # Gemini identification and lot valuation.
     screening_enabled: true
     screening_model: "gemini-3.5-flash-lite"
     screening_fallback_models:
       - "gemini-3.6-flash"
-    screening_confidence_threshold: 0.45
-    max_screenings_per_run: 100
-    era_set_screening_limit: 100
-    generic_screening_limit: 20
-    screening_max_overview_images: 4
-    screening_max_dimension_px: 1400
-    screening_jpeg_quality: 78
 
-    # The token budget is the primary run stop. These secondary caps prevent
-    # one run being dominated by unusually dense listings.
-    max_detailed_analyses_per_run: 40
-    detailed_max_overview_images: 10
     require_strong_lot_evidence: true
     lot_evidence_terms:
       - "まとめ売り"
@@ -65,20 +50,14 @@ sendico:
       - "bulk"
       - "assorted"
 
-  page_timeout_ms: 60000
-  maximum_scroll_rounds: 6
-  stable_scroll_rounds_before_stop: 2
-  scroll_pause_ms: 1200
-
-  # Compatibility keys only. Keep these false/empty; actual terms must be in
-  # data/watchlist.yaml under each card's searches list.
+  # Compatibility keys only. Actual terms must remain in data/watchlist.yaml.
   use_legacy_config_search_terms: false
   search_terms: []
 
 vision:
   enabled: true
   provider: "gemini"
-  pipeline_state_version: "watchlist-two-pass-token-budget-v5"
+  pipeline_state_version: "watchlist-two-pass-central-limits-v6"
   models:
     - "gemini-3.6-flash"
     - "gemini-3.5-flash-lite"
@@ -86,41 +65,6 @@ vision:
   api_version: "v1beta"
   api_revision: "2026-05-20"
   thinking_level: "low"
-  max_model_attempts_per_request: 2
-  max_retries_per_model: 2
-  retry_base_seconds: 2.0
-  retry_max_seconds: 30.0
-  request_timeout_seconds: 240
-
-  max_images_per_listing: 12
-  max_local_crops_per_listing: 40
-  local_analysis_max_dimension_px: 2200
-  crop_max_dimension_px: 1400
-  crop_jpeg_quality: 86
-  crop_padding_percent: 0.025
-  minimum_card_area_ratio: 0.012
-  maximum_card_area_ratio: 0.98
-  minimum_rectangularity: 0.58
-  card_aspect_ratio_min: 0.52
-  card_aspect_ratio_max: 0.84
-  duplicate_phash_distance: 10
-
-  # Target run usage: approximately 100,000-150,000 tokens. The scanner stops
-  # before starting another request when the 5,000-token reserve would take it
-  # beyond the 125,000-token target.
-  max_total_tokens_per_run: 300000
-  token_budget_reserve_per_request: 10000
-  max_listing_analyses_per_run: 50
-  max_vision_requests_per_run: 150
-
-  crop_batch_size: 4
-  request_spacing_seconds: 1.0
-  contact_sheet_max_dimension_px: 1100
-  contact_sheet_jpeg_quality: 82
-  max_completion_tokens: 1600
-  minimum_card_confidence: 0.95
-  minimum_target_confidence: 0.85
-  maximum_cards_to_price: 100
 
 pricing:
   request_delay_seconds: 1.2

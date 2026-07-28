@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from pokemon_deal_bot.config import load_config, load_run_limits
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -39,19 +41,33 @@ def test_price_override_file_is_valid_csv() -> None:
     )
 
 
-def test_default_config_uses_bounded_limits() -> None:
-    config = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+def test_run_limits_are_central_and_internally_consistent() -> None:
+    base = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert base["run_limits_file"] == "data/run_limits.yaml"
+    limits = load_run_limits(ROOT / base["run_limits_file"])
+    config = load_config(ROOT / "config.yaml").raw
+
     sendico = config["sendico"]
     tier2 = sendico["tier2_lot_search"]
     vision = config["vision"]
+
     assert sendico["prefilter_watchlist_relevance"] is True
-    assert sendico["max_results_per_search"] == 25
-    assert sendico["max_raw_links_per_search"] == 60
-    assert tier2["max_screenings_per_run"] == 40
-    assert tier2["max_detailed_analyses_per_run"] == 12
+    assert sendico["use_legacy_config_search_terms"] is False
+    assert sendico["search_terms"] == []
+    assert tier2["allow_query_only_candidates"] is False
+    assert tier2["screening_enabled"] is True
+    assert tier2["screening_model"] == "gemini-3.5-flash-lite"
     assert vision["provider"] == "gemini"
-    assert vision["max_listing_analyses_per_run"] == 12
-    assert vision["max_vision_requests_per_run"] == 80
-    assert vision["max_total_tokens_per_run"] == 125000
     assert vision["models"] == ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
     assert config["discord"]["send_completion_summary"] is True
+
+    # Tests validate relationships, not a particular tuning profile. The user can
+    # change any central value without modifying Python tests.
+    assert 1 <= sendico["max_results_per_search"] <= sendico["max_raw_links_per_search"]
+    assert sendico["max_listings_per_run"] >= sendico["max_results_per_search"]
+    if tier2["max_screenings_per_run"] > 0:
+        assert tier2["era_set_screening_limit"] <= tier2["max_screenings_per_run"]
+        assert tier2["generic_screening_limit"] <= tier2["max_screenings_per_run"]
+    assert tier2["max_detailed_analyses_per_run"] == vision["max_listing_analyses_per_run"]
+    assert vision["max_total_tokens_per_run"] > vision["token_budget_reserve_per_request"]
+    assert vision["max_total_tokens_per_run"] == limits["token_budget"]["max_total_tokens_per_run"]

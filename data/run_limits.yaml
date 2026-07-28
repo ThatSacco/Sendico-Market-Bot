@@ -1,0 +1,80 @@
+# Sendico Market Bot - central run limits
+#
+# Edit this file when you want to increase or decrease how much work one scan
+# can perform. Card names, PriceCharting URLs and marketplace search wording
+# remain exclusively in data/watchlist.yaml.
+#
+# Count-based caps marked below may be set to 0 for unlimited. The token budget
+# should remain enabled as the final safeguard against an unexpectedly broad run.
+version: 1
+
+retry:
+  max_attempts_per_listing: 3
+
+test_mode:
+  max_alerts_per_run: 1
+
+search:
+  # Maximum retained results from each active watchlist search.
+  results_per_term: 25
+  # Maximum unique listings considered across the complete run.
+  total_listings_per_run: 50
+  # Stop scrolling a Sendico result page after approximately this many raw links.
+  raw_links_per_term: 60
+  page_timeout_ms: 60000
+  max_scroll_rounds: 6
+  stable_rounds_before_stop: 2
+  scroll_pause_ms: 1200
+
+screening:
+  # Cheap Gemini Flash-Lite screening. Set count caps to 0 for unlimited.
+  max_listings_per_run: 100
+  focused_lot_limit: 100
+  generic_lot_limit: 10
+  confidence_threshold: 0.45
+  max_overview_images: 4
+  max_image_dimension_px: 1400
+  jpeg_quality: 78
+
+detailed_analysis:
+  # Detailed Gemini 3.6 analyses. This one value controls both the Tier 2 and
+  # global detailed-listing caps, so they can no longer become inconsistent.
+  max_listings_per_run: 30
+  max_overview_images: 10
+  max_images_downloaded: 12
+  max_card_crops_per_listing: 40
+  max_cards_to_price: 100
+  minimum_card_confidence: 0.95
+  minimum_target_confidence: 0.85
+
+token_budget:
+  # Primary safeguard. With the current settings, typical active runs should
+  # finish around 100,000-125,000 tokens and always remain below this ceiling.
+  max_total_tokens_per_run: 125000
+  reserve_per_request: 5000
+  # Set to 0 for unlimited requests while retaining the token ceiling.
+  max_requests_per_run: 120
+
+gemini_request:
+  max_model_attempts_per_request: 2
+  max_retries_per_model: 2
+  retry_base_seconds: 2.0
+  retry_max_seconds: 30.0
+  request_timeout_seconds: 240
+  crop_batch_size: 4
+  request_spacing_seconds: 1.0
+  max_completion_tokens: 1600
+
+image_processing:
+  local_analysis_max_dimension_px: 2200
+  crop_max_dimension_px: 1400
+  crop_jpeg_quality: 86
+  crop_padding_percent: 0.025
+  minimum_card_area_ratio: 0.012
+  maximum_card_area_ratio: 0.98
+  minimum_rectangularity: 0.58
+  card_aspect_ratio_min: 0.52
+  card_aspect_ratio_max: 0.84
+  duplicate_phash_distance: 10
+  contact_sheet_max_dimension_px: 1100
+  contact_sheet_jpeg_quality: 82
