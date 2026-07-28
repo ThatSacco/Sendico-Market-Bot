@@ -53,14 +53,14 @@ def load_watchlist(config: AppConfig) -> list[WatchCard]:
     path = config.path("data/watchlist.yaml")
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
-
     cards = [
         WatchCard(**item)
         for item in data.get("cards", [])
         if item.get("active", True)
     ]
     duplicate_ids = sorted(
-        card_id for card_id in {card.id for card in cards}
+        card_id
+        for card_id in {card.id for card in cards}
         if sum(card.id == card_id for card in cards) > 1
     )
     if duplicate_ids:
@@ -72,43 +72,86 @@ def load_watchlist(config: AppConfig) -> list[WatchCard]:
     return cards
 
 
-def watchlist_search_terms(targets: list[WatchCard]) -> list[str]:
-    """Return unique marketplace terms generated entirely from the watchlist."""
-    terms: list[str] = []
+def validate_watchlist_for_run(targets: list[WatchCard]) -> None:
+    """Fail before Sendico opens when the user-controlled watchlist is unsafe."""
+
     for target in targets:
-        if target.search_terms:
-            terms.extend(target.search_terms)
-            continue
+        searches = target.active_searches
+        if not searches:
+            raise ValueError(
+                f"Active watchlist entry {target.id!r} has no active searches"
+            )
+        if len(searches) > 4:
+            raise ValueError(
+                f"Active watchlist entry {target.id!r} has {len(searches)} active "
+                "searches; the maximum is 4"
+            )
+        folded = [search.term.casefold() for search in searches]
+        if len(folded) != len(set(folded)):
+            raise ValueError(
+                f"Active watchlist entry {target.id!r} contains duplicate search terms"
+            )
+        if target.match_mode == "exact_card" and not target.pricecharting_url:
+            raise ValueError(
+                f"Exact-card watchlist entry {target.id!r} requires pricecharting_url"
+            )
 
-        if target.match_mode == "exact_card":
-            number = str(target.card_number or "").strip()
-            for name in [*target.japanese_names, *target.english_names]:
-                terms.append(" ".join(part for part in [name, number] if part))
-        else:
-            terms.extend(target.japanese_names)
-            terms.extend(f"{name} Japanese" for name in target.english_names)
 
-    return list(dict.fromkeys(term.strip() for term in terms if term.strip()))
+def watchlist_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return only user-entered active ``exact`` searches; never generate terms."""
+
+    return _unique_terms(
+        [
+            search.term
+            for target in targets
+            for search in target.active_searches
+            if search.mode == "exact"
+        ]
+    )
+
+
+def _unique_terms(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(term.strip() for term in values if term.strip()))
+
+
+def watchlist_era_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return user-entered active focused-lot searches."""
+
+    return _unique_terms(
+        [
+            search.term
+            for target in targets
+            for search in target.active_searches
+            if search.mode == "focused_lot"
+        ]
+    )
+
+
+def watchlist_generic_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return user-entered active generic-lot searches."""
+
+    return _unique_terms(
+        [
+            search.term
+            for target in targets
+            for search in target.active_searches
+            if search.mode == "generic_lot"
+        ]
+    )
 
 
 def watchlist_lot_search_terms(targets: list[WatchCard]) -> list[str]:
-    """Return optional Tier 2 Pokemon-name-plus-lot search terms.
-
-    These terms are kept separate from the normal watchlist searches so the
-    scanner can cap broad lot candidates without limiting exact-card results.
-    """
-    return list(
-        dict.fromkeys(
-            term.strip()
-            for target in targets
-            for term in target.lot_search_terms
-            if term.strip()
-        )
+    return _unique_terms(
+        [
+            *watchlist_era_lot_search_terms(targets),
+            *watchlist_generic_lot_search_terms(targets),
+        ]
     )
 
 
 def watchlist_signature(targets: list[WatchCard]) -> str:
-    """Hash active rules so a watchlist edit permits old listings to be rescanned."""
+    """Hash all active rules and searches so edits permit a fresh rescan."""
+
     serialized = json.dumps(
         [asdict(target) for target in sorted(targets, key=lambda item: item.id)],
         ensure_ascii=False,

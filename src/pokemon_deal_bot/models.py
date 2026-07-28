@@ -1,17 +1,42 @@
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
 
+SEARCH_MODES = {"exact", "focused_lot", "generic_lot"}
+
+
+@dataclass(slots=True)
+class WatchSearch:
+    """One user-approved Sendico query stored in data/watchlist.yaml."""
+
+    term: str
+    mode: str = "focused_lot"
+    active: bool = True
+
+    def __post_init__(self) -> None:
+        self.term = str(self.term or "").strip()
+        self.mode = str(self.mode or "focused_lot").strip().lower()
+        self.active = bool(self.active)
+        if not self.term:
+            raise ValueError("Watchlist searches require a non-empty term")
+        if self.mode not in SEARCH_MODES:
+            raise ValueError(
+                f"Unsupported watchlist search mode {self.mode!r}; use exact, "
+                "focused_lot or generic_lot"
+            )
+
+
 @dataclass(slots=True)
 class WatchCard:
-    """One active watchlist rule.
+    """One active watchlist rule and its explicitly approved searches.
 
-    ``exact_card`` matches a specific printed card number and Pokemon name.
-    ``pokemon_general`` matches any identified card whose Pokemon name is in the
-    configured aliases, with optional set restrictions.
+    ``searches`` is the single source of truth. The four legacy term fields are
+    retained only so older tests/checkouts can still construct WatchCard objects;
+    when ``searches`` is present they are derived from it.
     """
 
     id: str
@@ -28,8 +53,12 @@ class WatchCard:
     language: str = "Japanese"
     accepted_sets: list[str] = field(default_factory=list)
     accepted_set_codes: list[str] = field(default_factory=list)
+    searches: list[WatchSearch | dict[str, Any]] = field(default_factory=list)
+    # Backwards-compatible constructor fields. Do not use these in watchlist.yaml.
     search_terms: list[str] = field(default_factory=list)
     lot_search_terms: list[str] = field(default_factory=list)
+    era_lot_search_terms: list[str] = field(default_factory=list)
+    generic_lot_search_terms: list[str] = field(default_factory=list)
     pricecharting_url: str | None = None
 
     def __post_init__(self) -> None:
@@ -49,17 +78,46 @@ class WatchCard:
         self.accepted_set_codes = _clean_list(self.accepted_set_codes)
         self.search_terms = _clean_list(self.search_terms)
         self.lot_search_terms = _clean_list(self.lot_search_terms)
+        self.era_lot_search_terms = _clean_list(self.era_lot_search_terms)
+        self.generic_lot_search_terms = _clean_list(self.generic_lot_search_terms)
+
+        parsed_searches: list[WatchSearch] = []
+        for item in self.searches or []:
+            if isinstance(item, WatchSearch):
+                parsed_searches.append(item)
+            elif isinstance(item, dict):
+                parsed_searches.append(WatchSearch(**item))
+            else:
+                raise ValueError(
+                    f"Watchlist entry {self.id!r} searches must contain mappings"
+                )
+
+        # Migrate legacy in-memory objects into the unified representation. This
+        # is compatibility only; repository YAML is validated to reject old keys.
+        if not parsed_searches:
+            parsed_searches.extend(
+                WatchSearch(term=term, mode="exact") for term in self.search_terms
+            )
+            parsed_searches.extend(
+                WatchSearch(term=term, mode="focused_lot")
+                for term in [*self.era_lot_search_terms, *self.lot_search_terms]
+            )
+            parsed_searches.extend(
+                WatchSearch(term=term, mode="generic_lot")
+                for term in self.generic_lot_search_terms
+            )
+        self.searches = _dedupe_searches(parsed_searches)
+        self._sync_legacy_search_fields()
+
         self.pricecharting_url = _clean_pricecharting_url(
             self.pricecharting_url,
             entry_id=self.id,
             match_mode=self.match_mode,
         )
-
         if self.japanese_name and self.japanese_name.strip() not in self.japanese_names:
             self.japanese_names.insert(0, self.japanese_name.strip())
         if self.english_name and self.english_name.strip() not in self.english_names:
             self.english_names.insert(0, self.english_name.strip())
-
         if not self.japanese_names and not self.english_names:
             raise ValueError(
                 f"Watchlist entry {self.id!r} requires at least one English or Japanese name"
@@ -68,6 +126,24 @@ class WatchCard:
             raise ValueError(
                 f"Exact-card watchlist entry {self.id!r} requires card_number"
             )
+
+    def _sync_legacy_search_fields(self) -> None:
+        active = [search for search in self.searches if search.active]
+        self.search_terms = [s.term for s in active if s.mode == "exact"]
+        self.era_lot_search_terms = [
+            s.term for s in active if s.mode == "focused_lot"
+        ]
+        self.generic_lot_search_terms = [
+            s.term for s in active if s.mode == "generic_lot"
+        ]
+        self.lot_search_terms = [
+            *self.era_lot_search_terms,
+            *self.generic_lot_search_terms,
+        ]
+
+    @property
+    def active_searches(self) -> list[WatchSearch]:
+        return [search for search in self.searches if search.active]
 
     @property
     def display_name(self) -> str:
@@ -82,7 +158,33 @@ class WatchCard:
 
 
 def _clean_list(values: list[str] | None) -> list[str]:
-    return list(dict.fromkeys(str(value).strip() for value in (values or []) if str(value).strip()))
+    return list(
+        dict.fromkeys(
+            str(value).strip() for value in (values or []) if str(value).strip()
+        )
+    )
+
+
+def _dedupe_searches(values: list[WatchSearch]) -> list[WatchSearch]:
+    seen: set[tuple[str, str]] = set()
+    result: list[WatchSearch] = []
+    for search in values:
+        key = (search.mode, search.term.casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(search)
+    return result
+
+
+def normalize_card_number(value: str | None) -> str:
+    """Normalise 27/81 and 027/081 to the same identity."""
+
+    compact = re.sub(r"\s+", "", str(value or "")).casefold()
+    match = re.fullmatch(r"0*(\d+)\s*/\s*0*(\d+)", compact)
+    if match:
+        return f"{int(match.group(1))}/{int(match.group(2))}"
+    return compact
 
 
 def _clean_pricecharting_url(
@@ -91,12 +193,6 @@ def _clean_pricecharting_url(
     entry_id: str,
     match_mode: str,
 ) -> str | None:
-    """Validate an optional direct PriceCharting product-page reference.
-
-    The URL is intentionally restricted to PriceCharting product pages because
-    the scanner fetches it automatically. Direct references are only safe for
-    exact-card rules; general Pokemon rules can match many different products.
-    """
     url = str(value or "").strip()
     if not url:
         return None
@@ -105,16 +201,15 @@ def _clean_pricecharting_url(
             f"Watchlist entry {entry_id!r} may use pricecharting_url only with "
             "match_mode 'exact_card'"
         )
-
     parsed = urlparse(url)
     hostname = (parsed.hostname or "").lower().rstrip(".")
-    if parsed.scheme not in {"http", "https"} or hostname not in {
+    if parsed.scheme != "https" or hostname not in {
         "pricecharting.com",
         "www.pricecharting.com",
     }:
         raise ValueError(
             f"Watchlist entry {entry_id!r} has an invalid pricecharting_url; "
-            "use a PriceCharting product-page URL"
+            "use an HTTPS PriceCharting product-page URL"
         )
     if not parsed.path.startswith("/game/"):
         raise ValueError(
@@ -163,7 +258,7 @@ class IdentifiedCard:
             [
                 self.language.lower().strip(),
                 (self.set_code or self.set_name or "").lower().strip(),
-                self.card_number.lower().replace(" ", ""),
+                normalize_card_number(self.card_number),
                 self.name_en.lower().strip(),
                 self.variant.lower().strip(),
                 (self.grading_company or "raw").lower().strip(),
@@ -224,7 +319,6 @@ class DealAssessment:
 
     @property
     def provisional_qualifies(self) -> bool:
-        """True when only the unavailable seller rating blocks an alert."""
         if self.qualifies or not self.rejection_reasons:
             return False
         return all(

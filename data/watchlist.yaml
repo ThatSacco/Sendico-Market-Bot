@@ -1,12 +1,17 @@
-# The bot supports any number of active entries.
+# WATCHLIST-ONLY SEARCH CONTROL
 #
-# exact_card:
-#   Requires an exact Pokemon name and printed card number.
+# This is the only file to edit when changing:
+#   - the card or Pokemon being searched;
+#   - the PriceCharting product reference;
+#   - the exact Sendico/Mercari search wording;
+#   - whether an individual search is active.
 #
-# pokemon_general:
-#   Matches any card for the named Pokemon. accepted_sets and
-#   accepted_set_codes are optional; omit them to allow every set.
-
+# Search modes:
+#   exact        - listing is expected to name the individual card;
+#   focused_lot  - set/era-specific multi-card lots (recommended);
+#   generic_lot  - broad Pokemon collection searches (high volume; use carefully).
+#
+# Safety rule: each active card must have 1-4 active searches.
 cards:
   - id: ampharos_ex_xy7_027
     active: true
@@ -18,31 +23,28 @@ cards:
     card_number: "027/081"
     rarity: "RR"
     language: "Japanese"
-
-    # Optional for exact_card entries. The bot checks this page first, verifies
-    # that its title/URL matches the identified card, and falls back to normal
-    # PriceCharting search if the page is unavailable or does not match.
     pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-bandit-ring/ampharos-ex-27"
 
-    search_terms:
-      - "デンリュウEX 027/081"
-      - "デンリュウEX XY7"
-      - "Ampharos EX 027/081 Japanese"
+    searches:
+      - term: "XY7 まとめ売り"
+        mode: focused_lot
+        active: true
 
-    # Tier 2 broad-lot discovery intentionally removes the Pokemon name from
-    # most queries. Gemini still has to identify Ampharos EX 027/081 in the
-    # listing photos before an alert can qualify. The XY-era searches increase
-    # the chance of finding the target without reverting to exact-card listings.
-    lot_search_terms:
-      - "ポケカ まとめ売り"
-      - "ポケモンカード まとめ売り"
-      - "ポケカ 引退品"
-      - "ポケカ 大量"
-      - "ポケカ XY まとめ売り"
-      - "バンデットリング まとめ売り"
+      - term: "バンデットリング まとめ売り"
+        mode: focused_lot
+        active: true
 
-  # General-search example. Change active to true to search for any Tyranitar
-  # across the four main Neo-era sets at the same time as Ampharos EX.
+      # Enable this only when you also want known individual-card listings.
+      - term: "デンリュウEX 027/081"
+        mode: exact
+        active: false
+
+      # Generic searches can return hundreds of unrelated results. Leave inactive
+      # unless a deliberately broad test is required.
+      - term: "ポケカ まとめ売り"
+        mode: generic_lot
+        active: false
+
   - id: tyranitar_neo_era
     active: false
     match_mode: pokemon_general
@@ -64,11 +66,10 @@ cards:
       - "Awakening Legends"
       - "Neo Destiny"
       - "Darkness, and to Light..."
-    search_terms:
-      - "バンギラス 旧裏"
-      - "バンギラス neo"
-      - "わるいバンギラス"
-      - "ひかるバンギラス"
-      - "Tyranitar Neo Japanese"
-      - "Dark Tyranitar Japanese"
-      - "Shining Tyranitar Japanese"
+    searches:
+      - term: "バンギラス neo まとめ売り"
+        mode: focused_lot
+        active: true
+      - term: "旧裏 バンギラス まとめ売り"
+        mode: focused_lot
+        active: true
