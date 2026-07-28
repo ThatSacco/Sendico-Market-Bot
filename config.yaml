@@ -1,0 +1,169 @@
+marketplace: mercari
+currency: AUD
+minimum_seller_positive_ratings: 301
+shipping_allowance_aud: 0.0
+
+# An unchanged listing with a retryable failure is attempted no more than three
+# times in total. If its price, title, seller rating or images change, the
+# fingerprint changes and the counter starts again for the updated listing.
+retry_policy:
+  max_attempts_per_listing: 3
+
+# Production mode. The workflow runs once per week at midnight Thursday in Sydney.
+test_mode:
+  enabled: false
+  max_alerts_per_run: 1
+  ignore_seen_state: false
+  skip_search_when_direct_urls: true
+  direct_listing_urls: []
+
+seller_verification:
+  # Listings with an unavailable rating can create a provisional Discord alert.
+  # Any verified seller below 301 positives is rejected.
+  analyse_unverified_sellers: true
+  alert_provisional_deals: true
+
+sendico:
+  category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
+
+  # Zero keeps every result returned by Sendico. Search-result text is then
+  # checked locally against the watchlist before any detail page or Gemini call.
+  max_results_per_search: 0
+  max_listings_per_run: 0
+  prefilter_watchlist_relevance: true
+
+  # Tier 2 broad-lot test. Exact watchlist searches still run first. These
+  # additional Pokemon-name-plus-lot terms are read from lot_search_terms in
+  # data/watchlist.yaml. Query-only results may reach Gemini even when the
+  # search-result title does not repeat the target name, but the separate cap
+  # prevents broad searches from consuming the full paid-vision budget.
+  tier2_lot_search:
+    enabled: true
+
+    # For this test, run only the broad lot searches below. This prevents the
+    # normal exact-card searches from filling Discord with the same single-card
+    # listings while we measure whether generic lots contain the target card.
+    run_standard_watchlist_searches: false
+
+    max_results_per_search: 40
+    # Applied after previously processed listings are skipped, allowing later
+    # lot candidates to rotate into future runs without increasing Gemini use.
+    max_analyses_per_run: 20
+    allow_query_only_candidates: true
+
+    # Sendico/Mercari may return a single card even for a broad lot query. After
+    # hydration, require clear multi-card language before spending Gemini tokens.
+    require_strong_lot_evidence: true
+    lot_evidence_terms:
+      - "まとめ売り"
+      - "大量"
+      - "引退品"
+      - "引退"
+      - "詰め合わせ"
+      - "セット販売"
+      - "lot"
+      - "bundle"
+      - "collection"
+      - "bulk"
+      - "assorted"
+
+  page_timeout_ms: 60000
+
+  # Zero means no fixed scroll-round cap. Scrolling stops after three rounds
+  # with no new unique Mercari listing links.
+  maximum_scroll_rounds: 0
+  stable_scroll_rounds_before_stop: 3
+  scroll_pause_ms: 1500
+
+  # Search terms now live in data/watchlist.yaml so adding or removing a
+  # target normally requires editing only that file. Set this to true only if
+  # you deliberately want to append the legacy terms below.
+  use_legacy_config_search_terms: false
+  search_terms: []
+
+vision:
+  enabled: true
+  provider: "gemini"
+
+  # Stable paid Gemini models in preferred order. Gemini 3.6 Flash is used
+  # first for card identification; Flash-Lite provides a lower-cost fallback
+  # if the primary model is temporarily rate-limited or unavailable.
+  models:
+    - "gemini-3.6-flash"
+    - "gemini-3.5-flash-lite"
+
+  # Legacy single-model key retained for compatibility with older checkouts.
+  # The ordered models list above takes priority.
+  model: "gemini-3.6-flash"
+  # Interactions API version and revision used for multimodal REST calls.
+  # Requests are stateless (`store: false`) and do not retain conversation history.
+  api_version: "v1beta"
+  api_revision: "2026-05-20"
+  thinking_level: "low"
+
+  # Retry temporary Gemini capacity errors before moving to the fallback model.
+  max_model_attempts_per_request: 2
+  max_retries_per_model: 2
+  retry_base_seconds: 2.0
+  retry_max_seconds: 30.0
+  request_timeout_seconds: 240
+
+  # Download up to 12 Sendico photos, then detect and crop card-shaped regions
+  # locally with OpenCV. Only the compact contact sheet is sent to Gemini.
+  max_images_per_listing: 12
+  max_local_crops_per_listing: 40
+  local_analysis_max_dimension_px: 2200
+  crop_max_dimension_px: 1400
+  crop_jpeg_quality: 86
+  crop_padding_percent: 0.025
+
+  # Conservative local rectangle filters for standard Pokemon-card proportions.
+  minimum_card_area_ratio: 0.012
+  maximum_card_area_ratio: 0.98
+  minimum_rectangularity: 0.58
+  card_aspect_ratio_min: 0.52
+  card_aspect_ratio_max: 0.84
+
+  # Perceptual hashing removes alternate-photo views without merging two
+  # identical physical cards that appear together in the same overview photo.
+  duplicate_phash_distance: 10
+
+  # Paid-capacity safeguards. These are deliberately much higher than the old
+  # Groq free-tier limits while still preventing an accidental unlimited run.
+  max_listing_analyses_per_run: 100
+  max_vision_requests_per_run: 150
+
+  # Each request contains one small JPEG contact sheet. Gemini paid capacity
+  # does not require a one-minute pause, so requests are spaced by one second.
+  # Oversized batches are split automatically.
+  crop_batch_size: 4
+  request_spacing_seconds: 1.0
+  contact_sheet_max_dimension_px: 1100
+  contact_sheet_jpeg_quality: 82
+  max_completion_tokens: 1600
+
+  # Price and include every Japanese card identified at 95% or higher.
+  minimum_card_confidence: 0.95
+  minimum_target_confidence: 0.85
+  maximum_cards_to_price: 100
+
+pricing:
+  request_delay_seconds: 1.2
+  cache_hours: 12
+  manual_usd_to_aud: 1.52
+  manual_jpy_to_aud: 0.0102
+
+  # Accept a PriceCharting candidate when the combined card-name, printed-number
+  # and Japanese-set match is at least 95%.
+  minimum_match_confidence: 0.95
+
+sendico_fee:
+  before_2026_08_01_jpy: 800
+  from_2026_08_01_jpy: 800
+
+discord:
+  username: "Pokemon Deal Scout"
+  enabled: true
+  # Send a brief result summary after every run, including zero-match and
+  # Gemini-capacity-paused scans.
+  send_completion_summary: true
