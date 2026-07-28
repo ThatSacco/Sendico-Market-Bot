@@ -52,13 +52,13 @@ sendico:
     max_screenings_per_run: 100
     era_set_screening_limit: 70
     generic_screening_limit: 30
-    screening_max_overview_images: 4
+    screening_max_overview_images: 6
     screening_max_dimension_px: 1400
     screening_jpeg_quality: 78
 
     # Only probable target listings receive the detailed multi-overview pass.
     max_detailed_analyses_per_run: 20
-    detailed_max_overview_images: 4
+    detailed_max_overview_images: 12
 
     # Sendico/Mercari may return a single card even for a broad lot query. After
     # hydration, require clear multi-card language before spending Gemini tokens.
@@ -93,6 +93,11 @@ sendico:
 vision:
   enabled: true
   provider: "gemini"
+
+  # Change this value whenever the vision pipeline or provider changes. It is
+  # included in listing retry-state identity so old failed attempts do not block
+  # a materially updated scanner from reassessing the same unchanged listing.
+  pipeline_state_version: "gemini-tier2-multi-overview-v3"
 
   # Stable paid Gemini models in preferred order. Gemini 3.6 Flash is used
   # first for card identification; Flash-Lite provides a lower-cost fallback
