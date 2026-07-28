@@ -1,25 +1,25 @@
 # Update manifest
 
-## Replace
+The updater preserves and migrates the current `data/watchlist.yaml` rather
+than blindly replacing it.
+
+Payload files copied directly:
 
 - `.github/workflows/scan.yml`
-- `.github/workflows/tests.yml`
 - `config.yaml`
-- `data/watchlist.yaml`
 - `src/pokemon_deal_bot/__init__.py`
 - `src/pokemon_deal_bot/config.py`
 - `src/pokemon_deal_bot/models.py`
+- `src/pokemon_deal_bot/tier2_vision.py`
+- `src/pokemon_deal_bot/updated_main.py`
+- `tests/test_v5_token_pipeline.py`
+
+Existing repository files updated safely by `apply_v5_update.py`:
+
+- `data/watchlist.yaml`
+- `src/pokemon_deal_bot/main.py`
+- `src/pokemon_deal_bot/gemini_vision.py`
+- `src/pokemon_deal_bot/sendico.py`
+- `src/pokemon_deal_bot/vision.py`
 - `tests/test_config.py`
 - `tests/test_repository_integrity.py`
-
-## Add or replace
-
-- `src/pokemon_deal_bot/updated_main.py`
-- `src/pokemon_deal_bot/tier2_vision.py`
-- `tests/test_updated_main.py`
-- `verify_watchlist_update.py`
-- `WATCHLIST_GUIDE.md`
-- `UPDATE_NOTES.md`
-- `README_UPDATE.md`
-
-All other repository files remain unchanged.

@@ -1,42 +1,45 @@
-# Tier 2 genuine-lot search update
+# Sendico Market Bot v5 update
 
-This update changes the Tier 2 test from **Pokemon-name-plus-lot** searches to
-**generic and XY-era multi-card lot** searches.
+This package consolidates the scanner into `pokemon_deal_bot.main`, keeps
+`data/watchlist.yaml` as the only source of card/search information, restores
+true two-pass Gemini processing, and raises the per-run Gemini target to
+approximately 100,000-150,000 tokens.
 
-## Why the previous test returned single cards
+## Apply
 
-The previous Tier 2 queries still contained `デンリュウ` or `Ampharos`.
-Sendico/Mercari therefore continued to prioritise listings whose main subject was
-one Ampharos card. The normal exact-card searches also remained enabled, so the
-same known single-card alerts continued to appear.
+1. Extract all files into the root of the existing GitHub repository.
+2. From the repository root, run:
 
-## New test behaviour
+```powershell
+python .\apply_v5_update.py
+```
 
-For this controlled test:
+The updater creates timestamped backups under `.update_backups/`, migrates the
+existing watchlist without replacing your cards, compiles the source, and runs
+the full test suite.
 
-- normal exact-card marketplace searches are temporarily disabled;
-- Tier 2 searches use generic Pokemon-card lot terms and XY/Bandit Ring terms;
-- a hydrated Tier 2 result must contain strong multi-card wording such as
-  `まとめ売り`, `大量`, `引退品`, `詰め合わせ`, `lot`, `bundle`, or an explicit
-  count such as `20枚` before Gemini tokens are spent;
-- no more than 20 genuine Tier 2 candidates are analysed per run;
-- Gemini must still identify **Ampharos EX 027/081** before an alert qualifies;
-- the Discord completion summary reports Tier 2 non-lots rejected and Tier 2
-  lot matches separately.
+Afterwards, verify explicitly:
 
-## Search terms used
+```powershell
+python .\verify_v5_update.py
+python -m pytest -q
+```
 
-- `ポケカ まとめ売り`
-- `ポケモンカード まとめ売り`
-- `ポケカ 引退品`
-- `ポケカ 大量`
-- `ポケカ XY まとめ売り`
-- `バンデットリング まとめ売り`
+Then review and push:
 
-## Current limitation
+```powershell
+git status --short
+git diff --check
+git diff
+git add .
+git commit -m "Consolidate watchlist search and 125k token pipeline"
+git push
+```
 
-This update tests whether broader search discovery produces real multi-card
-listings within the Gemini budget. The existing image pipeline still reconciles
-alternate photos conservatively and may not inspect every distinct page of a
-large collection. If genuine lots are found but the target is rarely detected,
-the next update should add dedicated multi-image lot mode.
+## Token behaviour
+
+`125,000` is a hard target ceiling, not a forced minimum. The scanner stops
+before another Gemini request when the current usage plus a 5,000-token reserve
+would exceed the target. A run can finish below 100,000 tokens if it runs out of
+eligible candidates, no listings pass screening, or another operational limit
+is reached.
