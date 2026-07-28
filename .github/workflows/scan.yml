@@ -71,7 +71,7 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python -m pokemon_deal_bot.main --config config.yaml
+        run: python -m pokemon_deal_bot.updated_main --config config.yaml
 
       - name: Persist scanner state and latest report
         if: always() && steps.schedule_guard.outputs.should_run == 'true'
