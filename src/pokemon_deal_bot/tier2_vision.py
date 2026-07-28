@@ -522,6 +522,10 @@ def install_on(analyzer_class: type) -> None:
 # updates work even when gemini_vision.py and main.py come from an older checkout.
 # The patch is deliberately idempotent.
 _RUNTIME_INSTALLED = False
+# The pricing guard must only be active while the scanner is processing the
+# result of a detailed Gemini analysis. Direct PriceCharting calls, tests and
+# maintenance utilities must continue to use PriceChartingClient normally.
+_PRICING_GUARD_ACTIVE = False
 _PRICING_TARGET_CONFIRMED = False
 _SINGLE_CARD_REJECTIONS = 0
 
@@ -567,14 +571,18 @@ def _wrap_token_budget(analyzer_class: type) -> None:
 
 
 def _wrap_analysis_results(analyzer_class: type) -> None:
-    global _PRICING_TARGET_CONFIRMED
+    global _PRICING_GUARD_ACTIVE, _PRICING_TARGET_CONFIRMED
 
     if getattr(analyzer_class, "_sendico_analysis_guards_installed", False):
         return
 
     def wrap(method):
         def guarded(self, *args, **kwargs):
-            global _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
+            global _PRICING_GUARD_ACTIVE, _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
+            # Keep the guard inactive while Gemini is running. This avoids
+            # leaking scanner state into unrelated PriceCharting calls if the
+            # analysis raises before returning a result.
+            _PRICING_GUARD_ACTIVE = False
             _PRICING_TARGET_CONFIRMED = False
             result = method(self, *args, **kwargs)
             if str(getattr(result, "listing_type", "")).strip().lower() == "single":
@@ -589,6 +597,7 @@ def _wrap_analysis_results(analyzer_class: type) -> None:
             _PRICING_TARGET_CONFIRMED = bool(
                 getattr(result, "target_present", False)
             )
+            _PRICING_GUARD_ACTIVE = True
             return result
 
         return guarded
@@ -611,7 +620,12 @@ def _install_price_guard() -> None:
     original_price_card = PriceChartingClient.price_card
 
     def guarded_price_card(self, *args, **kwargs):
-        if not _PRICING_TARGET_CONFIRMED:
+        # Only block pricing inside the scanner after a completed detailed
+        # analysis explicitly reported that no watchlist target was present.
+        # Outside that narrow context, preserve PriceChartingClient's normal
+        # behaviour (including direct-reference, fallback-search and PSA 10
+        # pricing paths).
+        if _PRICING_GUARD_ACTIVE and not _PRICING_TARGET_CONFIRMED:
             LOGGER.info("no watchlist target was confirmed; pricing skipped")
             return None
         return original_price_card(self, *args, **kwargs)
@@ -628,7 +642,7 @@ def _install_discord_summary_guard() -> None:
         return
 
     def guarded_summary(*args, **kwargs):
-        global _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
+        global _PRICING_GUARD_ACTIVE, _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
         original_non_lot = int(kwargs.get("tier2_non_lot_filtered", 0) or 0)
         kwargs["tier2_non_lot_filtered"] = (
             original_non_lot + _SINGLE_CARD_REJECTIONS
@@ -662,6 +676,7 @@ def _install_discord_summary_guard() -> None:
         try:
             return original_summary(*args, **kwargs)
         finally:
+            _PRICING_GUARD_ACTIVE = False
             _PRICING_TARGET_CONFIRMED = False
             _SINGLE_CARD_REJECTIONS = 0
 
