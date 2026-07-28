@@ -70,7 +70,7 @@ jobs:
         if: steps.schedule_guard.outputs.should_run == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python -m pokemon_deal_bot.main --config config.yaml
 
       - name: Persist scanner state and latest report
