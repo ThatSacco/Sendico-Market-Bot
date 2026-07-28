@@ -20,37 +20,37 @@ seller_verification:
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
 
-  # Operational safety limits only. All actual search wording lives in
-  # data/watchlist.yaml and is never generated from card names or config values.
-  max_results_per_search: 15
-  max_listings_per_run: 30
+  # Search wording is controlled exclusively from data/watchlist.yaml.
+  # These values only limit how much marketplace data one run can process.
+  max_results_per_search: 25
+  max_listings_per_run: 50
   prefilter_watchlist_relevance: true
-  max_raw_links_per_search: 40
+  max_raw_links_per_search: 60
 
   tier2_lot_search:
     enabled: true
-    # Exact searches are supported when a watchlist search has mode: exact.
-    # For the default Ampharos test the exact search is inactive.
     run_standard_watchlist_searches: true
-    max_results_per_search: 15
+    max_results_per_search: 25
     allow_query_only_candidates: false
 
+    # Cheap first pass. Only probable target listings proceed to detailed
+    # Gemini 3.6 identification and lot valuation.
     screening_enabled: true
     screening_model: "gemini-3.5-flash-lite"
     screening_fallback_models:
       - "gemini-3.6-flash"
     screening_confidence_threshold: 0.45
-    max_screenings_per_run: 15
-    era_set_screening_limit: 15
-    # Generic searches are inactive in the default watchlist. If deliberately
-    # enabled later, no more than three generic candidates are screened.
-    generic_screening_limit: 3
+    max_screenings_per_run: 40
+    era_set_screening_limit: 40
+    generic_screening_limit: 5
     screening_max_overview_images: 4
     screening_max_dimension_px: 1400
     screening_jpeg_quality: 78
 
-    max_detailed_analyses_per_run: 3
-    detailed_max_overview_images: 8
+    # The token budget is the primary run stop. These secondary caps prevent
+    # one run being dominated by unusually dense listings.
+    max_detailed_analyses_per_run: 12
+    detailed_max_overview_images: 10
     require_strong_lot_evidence: true
     lot_evidence_terms:
       - "まとめ売り"
@@ -66,19 +66,19 @@ sendico:
       - "assorted"
 
   page_timeout_ms: 60000
-  maximum_scroll_rounds: 5
+  maximum_scroll_rounds: 6
   stable_scroll_rounds_before_stop: 2
   scroll_pause_ms: 1200
 
-  # Retained only for compatibility with main.py. Keep false/empty: the runtime
-  # accepts search terms exclusively from data/watchlist.yaml.
+  # Compatibility keys only. Keep these false/empty; actual terms must be in
+  # data/watchlist.yaml under each card's searches list.
   use_legacy_config_search_terms: false
   search_terms: []
 
 vision:
   enabled: true
   provider: "gemini"
-  pipeline_state_version: "watchlist-only-bounded-v4"
+  pipeline_state_version: "watchlist-two-pass-token-budget-v5"
   models:
     - "gemini-3.6-flash"
     - "gemini-3.5-flash-lite"
@@ -105,9 +105,14 @@ vision:
   card_aspect_ratio_max: 0.84
   duplicate_phash_distance: 10
 
-  # Final run-level safeguards. Tier 2 also has its own tighter 15/3 limits.
-  max_listing_analyses_per_run: 3
-  max_vision_requests_per_run: 30
+  # Target run usage: approximately 100,000-150,000 tokens. The scanner stops
+  # before starting another request when the 5,000-token reserve would take it
+  # beyond the 125,000-token target.
+  max_total_tokens_per_run: 125000
+  token_budget_reserve_per_request: 5000
+  max_listing_analyses_per_run: 12
+  max_vision_requests_per_run: 80
+
   crop_batch_size: 4
   request_spacing_seconds: 1.0
   contact_sheet_max_dimension_px: 1100
@@ -115,7 +120,7 @@ vision:
   max_completion_tokens: 1600
   minimum_card_confidence: 0.95
   minimum_target_confidence: 0.85
-  maximum_cards_to_price: 40
+  maximum_cards_to_price: 100
 
 pricing:
   request_delay_seconds: 1.2
