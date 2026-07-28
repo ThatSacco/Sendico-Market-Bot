@@ -1,25 +1,10 @@
-# Update manifest
+# v5.2 update manifest
 
-The updater preserves and migrates the current `data/watchlist.yaml` rather
-than blindly replacing it.
-
-Payload files copied directly:
-
-- `.github/workflows/scan.yml`
-- `config.yaml`
-- `src/pokemon_deal_bot/__init__.py`
-- `src/pokemon_deal_bot/config.py`
-- `src/pokemon_deal_bot/models.py`
-- `src/pokemon_deal_bot/tier2_vision.py`
-- `src/pokemon_deal_bot/updated_main.py`
-- `tests/test_v5_token_pipeline.py`
-
-Existing repository files updated safely by `apply_v5_update.py`:
-
-- `data/watchlist.yaml`
-- `src/pokemon_deal_bot/main.py`
-- `src/pokemon_deal_bot/gemini_vision.py`
-- `src/pokemon_deal_bot/sendico.py`
-- `src/pokemon_deal_bot/vision.py`
-- `tests/test_config.py`
-- `tests/test_repository_integrity.py`
+- `config.yaml` — 125,000-token budget and expanded bounded limits.
+- `.github/workflows/scan.yml` — manual plus Thursday-midnight Sydney schedule; runs `main` directly.
+- `src/pokemon_deal_bot/__init__.py` — installs runtime support before scanner imports.
+- `src/pokemon_deal_bot/tier2_vision.py` — two-pass methods, token enforcement, target-before-pricing guard, single-card suppression and held-count correction.
+- `src/pokemon_deal_bot/updated_main.py` — self-contained backwards-compatible helper module.
+- `tests/test_config.py` — expectations aligned to the v5 limits.
+- `tests/test_repository_integrity.py` — expectations aligned to manual plus scheduled execution and direct `main` runtime.
+- `tests/test_v5_token_pipeline.py` — validates installed methods, token guard and runtime safety controls.

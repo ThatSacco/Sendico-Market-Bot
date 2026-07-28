@@ -514,3 +514,177 @@ def install_on(analyzer_class: type) -> None:
     for name, method in methods.items():
         if not callable(getattr(analyzer_class, name, None)):
             setattr(analyzer_class, name, method)
+
+
+# Runtime compatibility and safety guards
+# ---------------------------------------
+# These guards are installed from pokemon_deal_bot.__init__ so GitHub file-only
+# updates work even when gemini_vision.py and main.py come from an older checkout.
+# The patch is deliberately idempotent.
+_RUNTIME_INSTALLED = False
+_PRICING_TARGET_CONFIRMED = False
+_SINGLE_CARD_REJECTIONS = 0
+
+
+def _wrap_token_budget(analyzer_class: type) -> None:
+    if getattr(analyzer_class, "_sendico_token_budget_installed", False):
+        return
+
+    original_init = analyzer_class.__init__
+    original_post = analyzer_class._post_model_request
+
+    def budgeted_init(
+        self,
+        *args,
+        max_total_tokens_per_run: int = 125000,
+        token_budget_reserve_per_request: int = 5000,
+        **kwargs,
+    ):
+        original_init(self, *args, **kwargs)
+        self.max_total_tokens_per_run = max(0, int(max_total_tokens_per_run))
+        self.token_budget_reserve_per_request = max(
+            0, int(token_budget_reserve_per_request)
+        )
+
+    def budgeted_post(self, *args, **kwargs):
+        limit = max(0, int(getattr(self, "max_total_tokens_per_run", 125000)))
+        reserve = max(
+            0,
+            int(getattr(self, "token_budget_reserve_per_request", 5000)),
+        )
+        used = max(0, int(getattr(self, "total_tokens", 0)))
+        if limit > 0 and used + reserve > limit:
+            raise VisionRunBudgetReached(
+                "Gemini token budget reached for this scan: "
+                f"{used:,} tokens used; {reserve:,} reserved for the next request; "
+                f"limit {limit:,}."
+            )
+        return original_post(self, *args, **kwargs)
+
+    analyzer_class.__init__ = budgeted_init
+    analyzer_class._post_model_request = budgeted_post
+    analyzer_class._sendico_token_budget_installed = True
+
+
+def _wrap_analysis_results(analyzer_class: type) -> None:
+    global _PRICING_TARGET_CONFIRMED
+
+    if getattr(analyzer_class, "_sendico_analysis_guards_installed", False):
+        return
+
+    def wrap(method):
+        def guarded(self, *args, **kwargs):
+            global _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
+            _PRICING_TARGET_CONFIRMED = False
+            result = method(self, *args, **kwargs)
+            if str(getattr(result, "listing_type", "")).strip().lower() == "single":
+                _SINGLE_CARD_REJECTIONS += 1
+                result.target_present = False
+                result.target_confidence = 0.0
+                notes = list(getattr(result, "notes", []) or [])
+                message = "Detailed Gemini confirmed a single-card listing"
+                if message not in notes:
+                    notes.append(message)
+                result.notes = notes
+            _PRICING_TARGET_CONFIRMED = bool(
+                getattr(result, "target_present", False)
+            )
+            return result
+
+        return guarded
+
+    if callable(getattr(analyzer_class, "analyze", None)):
+        analyzer_class.analyze = wrap(analyzer_class.analyze)
+    if callable(getattr(analyzer_class, "analyze_with_overviews", None)):
+        analyzer_class.analyze_with_overviews = wrap(
+            analyzer_class.analyze_with_overviews
+        )
+    analyzer_class._sendico_analysis_guards_installed = True
+
+
+def _install_price_guard() -> None:
+    from .pricecharting import PriceChartingClient
+
+    if getattr(PriceChartingClient, "_sendico_target_guard_installed", False):
+        return
+
+    original_price_card = PriceChartingClient.price_card
+
+    def guarded_price_card(self, *args, **kwargs):
+        if not _PRICING_TARGET_CONFIRMED:
+            LOGGER.info("no watchlist target was confirmed; pricing skipped")
+            return None
+        return original_price_card(self, *args, **kwargs)
+
+    PriceChartingClient.price_card = guarded_price_card
+    PriceChartingClient._sendico_target_guard_installed = True
+
+
+def _install_discord_summary_guard() -> None:
+    from . import discord as discord_module
+
+    original_summary = discord_module.send_discord_summary
+    if getattr(original_summary, "_sendico_held_guard_installed", False):
+        return
+
+    def guarded_summary(*args, **kwargs):
+        global _PRICING_TARGET_CONFIRMED, _SINGLE_CARD_REJECTIONS
+        original_non_lot = int(kwargs.get("tier2_non_lot_filtered", 0) or 0)
+        kwargs["tier2_non_lot_filtered"] = (
+            original_non_lot + _SINGLE_CARD_REJECTIONS
+        )
+
+        stop_reason = str(kwargs.get("stop_reason") or "").strip()
+        if stop_reason:
+            selected = int(kwargs.get("tier2_selected", 0) or 0)
+            screened = int(kwargs.get("tier2_screened", 0) or 0)
+            probable = int(kwargs.get("tier2_probable", 0) or 0)
+            analysed = int(kwargs.get("tier2_analysed", 0) or 0)
+            held = int(kwargs.get("tier2_held", 0) or 0)
+
+            if screened > 0:
+                inferred_held = max(0, selected - screened) + max(
+                    0, probable - analysed
+                )
+            else:
+                inferred_held = max(
+                    0,
+                    selected - analysed - kwargs["tier2_non_lot_filtered"],
+                )
+            held = max(held, inferred_held)
+            kwargs["tier2_held"] = held
+            if held > 0 and "remaining eligible Tier 2" not in stop_reason:
+                kwargs["stop_reason"] = (
+                    f"{stop_reason} {held} remaining eligible Tier 2 listing(s) "
+                    "will be considered on the next run."
+                )
+
+        try:
+            return original_summary(*args, **kwargs)
+        finally:
+            _PRICING_TARGET_CONFIRMED = False
+            _SINGLE_CARD_REJECTIONS = 0
+
+    guarded_summary._sendico_held_guard_installed = True
+    discord_module.send_discord_summary = guarded_summary
+
+
+def install_runtime_support() -> None:
+    """Install Tier 2 methods and v5 safety controls exactly once.
+
+    This is designed for GitHub UI file uploads. It makes the current analyzer
+    compatible with the two-pass pipeline without requiring a local patch script.
+    """
+
+    global _RUNTIME_INSTALLED
+    if _RUNTIME_INSTALLED:
+        return
+
+    from .gemini_vision import GeminiLotVisionAnalyzer
+
+    install_on(GeminiLotVisionAnalyzer)
+    _wrap_token_budget(GeminiLotVisionAnalyzer)
+    _wrap_analysis_results(GeminiLotVisionAnalyzer)
+    _install_price_guard()
+    _install_discord_summary_guard()
+    _RUNTIME_INSTALLED = True

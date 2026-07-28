@@ -183,15 +183,15 @@ def test_repository_config_uses_bounded_two_pass_screening():
     data = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
     sendico = data["sendico"]
     tier2 = sendico["tier2_lot_search"]
-    assert sendico["max_results_per_search"] == 15
-    assert sendico["max_listings_per_run"] == 30
-    assert sendico["maximum_scroll_rounds"] == 5
+    assert sendico["max_results_per_search"] == 25
+    assert sendico["max_listings_per_run"] == 50
+    assert sendico["maximum_scroll_rounds"] == 6
     assert sendico["use_legacy_config_search_terms"] is False
     assert sendico["search_terms"] == []
     assert tier2["enabled"] is True
     assert tier2["require_strong_lot_evidence"] is True
     assert tier2["allow_query_only_candidates"] is False
     assert tier2["screening_model"] == "gemini-3.5-flash-lite"
-    assert tier2["max_screenings_per_run"] == 15
-    assert tier2["max_detailed_analyses_per_run"] == 3
-    assert tier2["detailed_max_overview_images"] == 8
+    assert tier2["max_screenings_per_run"] == 40
+    assert tier2["max_detailed_analyses_per_run"] == 12
+    assert tier2["detailed_max_overview_images"] == 10

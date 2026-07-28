@@ -16,7 +16,6 @@ def test_v5_configuration_uses_watchlist_two_pass_token_budget() -> None:
     sendico = config["sendico"]
     tier2 = sendico["tier2_lot_search"]
     vision = config["vision"]
-
     assert sendico["use_legacy_config_search_terms"] is False
     assert sendico["search_terms"] == []
     assert sendico["max_results_per_search"] == 25
@@ -45,7 +44,6 @@ def test_token_budget_stops_before_network_request() -> None:
         token_budget_reserve_per_request=5000,
     )
     analyser.total_tokens = 120001
-
     with pytest.raises(VisionRunBudgetReached, match="token budget"):
         analyser._post_model_request(
             "gemini-3.6-flash",
@@ -55,8 +53,10 @@ def test_token_budget_stops_before_network_request() -> None:
     assert analyser.requests_sent == 0
 
 
-def test_main_pipeline_guards_pricing_and_counts_held_candidates() -> None:
-    source = (ROOT / "src/pokemon_deal_bot/main.py").read_text(encoding="utf-8")
+def test_runtime_support_contains_pricing_single_card_and_held_guards() -> None:
+    source = (
+        ROOT / "src/pokemon_deal_bot/tier2_vision.py"
+    ).read_text(encoding="utf-8")
     assert "no watchlist target was confirmed; pricing skipped" in source
     assert "Detailed Gemini confirmed a single-card listing" in source
     assert "remaining eligible Tier 2" in source
