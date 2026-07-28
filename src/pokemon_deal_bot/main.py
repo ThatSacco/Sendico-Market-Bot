@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import re
 import unicodedata
 
 from .config import (
@@ -152,6 +153,44 @@ def _is_tier2_only(sources: set[str]) -> bool:
         "tier2_lot" in sources
         and "watchlist" not in sources
         and "direct" not in sources
+    )
+
+
+def _has_strong_lot_evidence(
+    listing: SendicoListing,
+    configured_terms: list[str] | tuple[str, ...] | None = None,
+) -> bool:
+    """Return True when hydrated listing text clearly describes multiple cards.
+
+    Tier 2 marketplace searches can still return single-card results because
+    Sendico/Mercari may prioritise the Pokemon name over weaker words such as
+    ``lot`` or ``set``.  Require stronger wording before spending a Gemini
+    request.  A numeric card-count expression is also accepted.
+    """
+    haystack = " ".join(
+        [listing.title, listing.raw_text, listing.description[:2000]]
+    )
+    compact = _compact_search(haystack)
+    default_terms = (
+        "まとめ売り",
+        "大量",
+        "引退品",
+        "引退",
+        "詰め合わせ",
+        "セット販売",
+        "lot",
+        "bundle",
+        "collection",
+        "bulk",
+        "assorted",
+    )
+    terms = list(configured_terms or default_terms)
+    if any(_compact_search(term) in compact for term in terms if str(term).strip()):
+        return True
+
+    normalized = unicodedata.normalize("NFKC", haystack).casefold()
+    return bool(
+        re.search(r"(?:^|\D)(?:[2-9]|[1-9]\d{1,3})\s*(?:枚|cards?)(?:\D|$)", normalized)
     )
 
 
@@ -368,6 +407,8 @@ async def run(config_path: str, dry_run: bool = False) -> int:
     tier2_selected_count = 0
     tier2_analyses_started = 0
     tier2_held_count = 0
+    tier2_non_lot_filtered = 0
+    tier2_match_count = 0
     hydrated_count = 0
     unchanged_skipped = 0
     seller_filtered = 0
@@ -415,6 +456,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
 
             tier2_cfg = sendico_cfg.get("tier2_lot_search", {}) or {}
             tier2_enabled = bool(tier2_cfg.get("enabled", False))
+            run_standard_watchlist_searches = bool(
+                tier2_cfg.get("run_standard_watchlist_searches", True)
+            )
             tier2_terms = (
                 watchlist_lot_search_terms(targets) if tier2_enabled else []
             )
@@ -452,7 +496,11 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             else:
                 search_plan = [
                     *(("direct", code) for code in sorted(direct_codes)),
-                    *(("watchlist", term) for term in configured_terms),
+                    *(
+                        ("watchlist", term)
+                        for term in configured_terms
+                        if run_standard_watchlist_searches
+                    ),
                     *(("tier2_lot", term) for term in tier2_terms),
                 ]
 
@@ -558,6 +606,36 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         unchanged_skipped += 1
                         continue
 
+                    tier2_only = _is_tier2_only(
+                        candidate_sources.get(listing.code, set())
+                    )
+                    require_lot_evidence = bool(
+                        tier2_cfg.get("require_strong_lot_evidence", False)
+                    )
+                    lot_evidence_terms = [
+                        str(value).strip()
+                        for value in tier2_cfg.get("lot_evidence_terms", [])
+                        if str(value).strip()
+                    ]
+                    if (
+                        tier2_only
+                        and require_lot_evidence
+                        and not _has_strong_lot_evidence(
+                            listing,
+                            lot_evidence_terms or None,
+                        )
+                    ):
+                        tier2_non_lot_filtered += 1
+                        outcome = "tier 2 result lacked strong multi-card lot evidence"
+                        LOGGER.info("Skipping %s: %s", listing.code, outcome)
+                        state.update(
+                            listing,
+                            False,
+                            outcome,
+                            scan_signature,
+                        )
+                        continue
+
                     if test_mode:
                         LOGGER.warning(
                             "TEST MODE: bypassing seller-rating filter for %s",
@@ -600,9 +678,6 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             seller_filtered += 1
                             continue
 
-                    tier2_only = _is_tier2_only(
-                        candidate_sources.get(listing.code, set())
-                    )
                     if (
                         tier2_only
                         and tier2_analysis_limit > 0
@@ -703,6 +778,10 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         ),
                     )
                     assessments.append(assessment)
+                    if tier2_only and (
+                        assessment.qualifies or assessment.provisional_qualifies
+                    ):
+                        tier2_match_count += 1
 
                     if test_mode:
                         if test_alerts_sent >= test_alert_limit:
@@ -886,6 +965,8 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 tier2_selected=tier2_selected_count,
                 tier2_analysed=tier2_analyses_started,
                 tier2_held=tier2_held_count,
+                tier2_non_lot_filtered=tier2_non_lot_filtered,
+                tier2_matches=tier2_match_count,
                 unchanged_skipped=unchanged_skipped,
                 seller_filtered=seller_filtered,
                 analysed=vision_analyses_started,
@@ -904,11 +985,14 @@ async def run(config_path: str, dry_run: bool = False) -> int:
 
     LOGGER.info(
         "Completed: %d discovered, %d Tier 2 candidates, %d Tier 2 analysed, "
+        "%d Tier 2 non-lots filtered, %d Tier 2 matches, "
         "%d filtered before Gemini, %d assessments, %d strict qualifying, "
         "%d provisional, %d deal alerts, %d test alerts, %d Gemini requests%s",
         discovered_count,
         tier2_selected_count,
         tier2_analyses_started,
+        tier2_non_lot_filtered,
+        tier2_match_count,
         prefiltered_out,
         len(assessments),
         strict_count,

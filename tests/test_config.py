@@ -163,3 +163,23 @@ def test_watchlist_rejects_pricecharting_search_page_as_direct_reference():
                 "https://www.pricecharting.com/search-products?q=ampharos"
             ),
         )
+
+
+def test_repository_watchlist_uses_generic_tier2_lot_queries():
+    root = Path(__file__).resolve().parents[1]
+    data = yaml.safe_load((root / "data" / "watchlist.yaml").read_text(encoding="utf-8"))
+    ampharos = next(card for card in data["cards"] if card["id"] == "ampharos_ex_xy7_027")
+    terms = ampharos["lot_search_terms"]
+    assert "ポケカ まとめ売り" in terms
+    assert "ポケカ XY まとめ売り" in terms
+    assert all("デンリュウ" not in term and "Ampharos" not in term for term in terms)
+
+
+def test_repository_config_runs_tier2_only_and_requires_lot_evidence():
+    root = Path(__file__).resolve().parents[1]
+    data = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    tier2 = data["sendico"]["tier2_lot_search"]
+    assert tier2["enabled"] is True
+    assert tier2["run_standard_watchlist_searches"] is False
+    assert tier2["require_strong_lot_evidence"] is True
+    assert tier2["max_analyses_per_run"] == 20

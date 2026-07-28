@@ -1,5 +1,6 @@
 from pokemon_deal_bot.main import (
     _candidate_relevance_score,
+    _has_strong_lot_evidence,
     _merge_listing,
     _rank_candidate_pool,
 )
@@ -178,3 +179,34 @@ def test_listing_found_by_exact_and_tier2_is_not_tier2_only():
     assert [item.code for item in selected] == ["duplicate"]
     assert filtered == 0
     assert tier2_selected == 0
+
+
+def test_strong_lot_evidence_accepts_multi_card_language():
+    listing = SendicoListing(
+        code="lot",
+        url="https://example.test/lot",
+        title="ポケモンカード XY まとめ売り",
+        price_yen=5000,
+    )
+    assert _has_strong_lot_evidence(listing)
+
+
+def test_strong_lot_evidence_accepts_explicit_card_count():
+    listing = SendicoListing(
+        code="counted",
+        url="https://example.test/counted",
+        title="Pokemon cards 25 cards",
+        price_yen=5000,
+    )
+    assert _has_strong_lot_evidence(listing)
+
+
+def test_strong_lot_evidence_rejects_single_card_set_wording():
+    listing = SendicoListing(
+        code="single",
+        url="https://example.test/single",
+        title="デンリュウEX XY7 セット",
+        description="カード1枚です",
+        price_yen=1500,
+    )
+    assert not _has_strong_lot_evidence(listing)

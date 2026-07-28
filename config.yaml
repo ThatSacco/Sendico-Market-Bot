@@ -39,11 +39,33 @@ sendico:
   # prevents broad searches from consuming the full paid-vision budget.
   tier2_lot_search:
     enabled: true
-    max_results_per_search: 30
+
+    # For this test, run only the broad lot searches below. This prevents the
+    # normal exact-card searches from filling Discord with the same single-card
+    # listings while we measure whether generic lots contain the target card.
+    run_standard_watchlist_searches: false
+
+    max_results_per_search: 40
     # Applied after previously processed listings are skipped, allowing later
     # lot candidates to rotate into future runs without increasing Gemini use.
     max_analyses_per_run: 20
     allow_query_only_candidates: true
+
+    # Sendico/Mercari may return a single card even for a broad lot query. After
+    # hydration, require clear multi-card language before spending Gemini tokens.
+    require_strong_lot_evidence: true
+    lot_evidence_terms:
+      - "まとめ売り"
+      - "大量"
+      - "引退品"
+      - "引退"
+      - "詰め合わせ"
+      - "セット販売"
+      - "lot"
+      - "bundle"
+      - "collection"
+      - "bulk"
+      - "assorted"
 
   page_timeout_ms: 60000
 
