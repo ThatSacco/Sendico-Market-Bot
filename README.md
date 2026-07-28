@@ -1,42 +1,36 @@
-# Tier 2 genuine-lot search update
+# Sendico watchlist-only search update
 
-This update changes the Tier 2 test from **Pokemon-name-plus-lot** searches to
-**generic and XY-era multi-card lot** searches.
+Copy this package into the root of the existing Sendico Market Bot repository and
+replace matching files.
 
-## Why the previous test returned single cards
+The update does not contain `data/watchlist.yaml`, so it will not overwrite the
+user's card entries or current search terms.
 
-The previous Tier 2 queries still contained `デンリュウ` or `Ampharos`.
-Sendico/Mercari therefore continued to prioritise listings whose main subject was
-one Ampharos card. The normal exact-card searches also remained enabled, so the
-same known single-card alerts continued to appear.
+Before running GitHub Actions, edit the selected card in `data/watchlist.yaml`:
 
-## New test behaviour
+```yaml
+era_lot_search_terms:
+  - "バンデットリング まとめ売り"
+  - "XY7 まとめ売り"
+```
 
-For this controlled test:
+Use one to four focused terms. The manual workflow ignores
+`generic_lot_search_terms` to prevent broad searches from increasing token use.
 
-- normal exact-card marketplace searches are temporarily disabled;
-- Tier 2 searches use generic Pokemon-card lot terms and XY/Bandit Ring terms;
-- a hydrated Tier 2 result must contain strong multi-card wording such as
-  `まとめ売り`, `大量`, `引退品`, `詰め合わせ`, `lot`, `bundle`, or an explicit
-  count such as `20枚` before Gemini tokens are spent;
-- no more than 20 genuine Tier 2 candidates are analysed per run;
-- Gemini must still identify **Ampharos EX 027/081** before an alert qualifies;
-- the Discord completion summary reports Tier 2 non-lots rejected and Tier 2
-  lot matches separately.
+Validate locally:
 
-## Search terms used
+```powershell
+python .\verify_watchlist_search_update.py
+python -m pytest -q
+```
 
-- `ポケカ まとめ売り`
-- `ポケモンカード まとめ売り`
-- `ポケカ 引退品`
-- `ポケカ 大量`
-- `ポケカ XY まとめ売り`
-- `バンデットリング まとめ売り`
+Commit and push:
 
-## Current limitation
+```powershell
+git add .
+git commit -m "Read manual Sendico search terms from watchlist"
+git push
+```
 
-This update tests whether broader search discovery produces real multi-card
-listings within the Gemini budget. The existing image pipeline still reconciles
-alternate photos conservatively and may not inspect every distinct page of a
-large collection. If genuine lots are found but the target is rarely detected,
-the next update should add dedicated multi-image lot mode.
+In GitHub Actions, enter the selected watchlist `id`, the direct PriceCharting
+product URL, and the conservative limits. There is no search-term input field.
