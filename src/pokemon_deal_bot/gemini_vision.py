@@ -1067,4 +1067,3 @@ class GeminiLotVisionAnalyzer(LotVisionAnalyzer):
             ],
             matched_watchlist_ids=matched_ids,
         )
-
