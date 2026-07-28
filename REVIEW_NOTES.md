@@ -1,29 +1,47 @@
-# Review of current GitHub code
+# Completed-run review
 
-Reviewed against the current `main` branch documentation and the uploaded current copies of `vision.py`, `main.py`, and `config.yaml`.
+## Confirmed working
 
-## Already implemented
+- Sendico searches completed.
+- Result prefiltering worked.
+- Listing hydration excluded unrelated recommendation thumbnails.
+- Local card cropping and alternate-photo quantity anchoring worked.
+- Groq model discovery worked.
+- `service_tier: on_demand` worked; the earlier organisation-tier error is resolved.
+- Qwen completed one vision result successfully and PriceCharting lookup ran.
+- Discord completion summary was sent.
 
-- Ordered Groq model pool.
-- Groq `/models` account discovery.
-- Per-model fallback for quota, permissions, deprecation, and image incompatibility.
-- JSON-mode fallback.
-- Per-model request pacing.
-- Per-run request and listing-analysis budgets.
-- Discord model-usage summary.
+## Problems shown by the full run
 
-## Required update
+### Intermittent JSON-object validation failure
 
-The current configuration and Python defaults use `service_tier: auto`. The reported Groq HTTP 400 shows that this tier is unavailable for the organisation. This package changes the default to `on_demand`.
+The first two Qwen calls returned HTTP 400 with:
 
-## Resilience update
+```text
+Failed to validate JSON. Please adjust your prompt.
+See 'failed_generation' for more details.
+```
 
-When Groq rejects a service tier, the client now retries the same model in this order:
+A later Qwen request succeeded, confirming that the model and image payload were valid and the JSON failure was intermittent.
 
-1. `on_demand` (when the original tier was different).
-2. No `service_tier` field, allowing Groq to use its account default.
-3. Normal model fallback if the request still fails for another reason.
+### Text-only fallback calls
 
-## Recommendation corrected from today's discussion
+After Qwen reached its token-per-day quota, automatic discovery attempted seven text-only models. Each rejected the image message with:
 
-The existing behaviour that disables a 429-limited model for the remainder of the current scan is sensible. It prevents repeatedly spending requests on a model whose quota is unavailable and immediately moves to the next model. This package leaves that behaviour unchanged.
+```text
+messages[0].content must be a string
+```
+
+Those models were available to the account but were not usable as vision fallbacks.
+
+### Daily quota
+
+The final Qwen response reported a 200,000 token-per-day limit with 199,860 already used. Code cannot bypass that account limit. The bot should stop once all actual vision models are unavailable.
+
+## Validation
+
+The revised files were installed into the reviewed repository test set and the full suite passed:
+
+```text
+82 passed
+```

@@ -507,6 +507,11 @@ class LotVisionAnalyzer:
         self._models_resolved = not self.auto_discover_models
         self._preferred_model: str | None = None
         self._disabled_models: dict[str, str] = {}
+        # Qwen vision can occasionally return Groq's failed_generation JSON
+        # validation error even though the same request succeeds later. After
+        # the first such error, use prompt-only JSON for the rest of this run
+        # so repeated listings do not spend an extra request on the same failure.
+        self._json_mode_disabled_models: set[str] = set()
         self.model_usage: dict[str, int] = {}
         self.model_attempts: dict[str, int] = {}
         self.max_requests_per_run = max(0, int(max_requests_per_run))
@@ -849,33 +854,22 @@ class LotVisionAnalyzer:
         return output.getvalue()
 
     @staticmethod
-    def _looks_like_chat_candidate(model_id: str) -> bool:
-        """Exclude models that clearly belong to non-chat API families.
+    def _looks_like_vision_candidate(model_id: str) -> bool:
+        """Keep only model IDs that are plausibly image-capable.
 
-        The Groq Models endpoint currently does not expose input modalities, so
-        future or account-specific chat models are kept and tested lazily. Models
-        that reject images are disabled for the rest of the scan after one try.
+        Groq's Models endpoint lists models available to the account, but the
+        response does not currently provide a reliable input-modality field.
+        The previous implementation therefore tried every chat model after a
+        vision-model quota error. That spent requests on text-only models that
+        all rejected the image message. Restrict discovery to known vision-name
+        patterns while still allowing configured models to take priority.
         """
         lowered = model_id.casefold()
-        excluded_markers = (
-            "whisper",
-            "distil-whisper",
-            "orpheus",
-            "text-to-speech",
-            "tts",
-            "prompt-guard",
-            "safeguard",
-            "llama-guard",
-        )
-        return not any(marker in lowered for marker in excluded_markers)
-
-    @staticmethod
-    def _vision_likelihood(model_id: str) -> tuple[int, str]:
-        lowered = model_id.casefold()
-        likely_markers = (
+        vision_markers = (
             "vision",
             "multimodal",
             "qwen3.6",
+            "qwen3-vl",
             "qwen-vl",
             "qwen2-vl",
             "llava",
@@ -884,7 +878,24 @@ class LotVisionAnalyzer:
             "scout",
             "maverick",
         )
-        return (0 if any(marker in lowered for marker in likely_markers) else 1, lowered)
+        return any(marker in lowered for marker in vision_markers)
+
+    @staticmethod
+    def _vision_likelihood(model_id: str) -> tuple[int, str]:
+        lowered = model_id.casefold()
+        preferred_markers = (
+            "qwen3.6",
+            "qwen3-vl",
+            "qwen-vl",
+            "vision",
+            "multimodal",
+            "llava",
+            "pixtral",
+            "llama-4",
+            "scout",
+            "maverick",
+        )
+        return (0 if any(marker in lowered for marker in preferred_markers) else 1, lowered)
 
     def _resolve_models(self) -> None:
         if self._models_resolved:
@@ -902,7 +913,7 @@ class LotVisionAnalyzer:
                 model_id = str(raw.get("id") or "").strip()
                 if not model_id or raw.get("active") is False:
                     continue
-                if self._looks_like_chat_candidate(model_id):
+                if self._looks_like_vision_candidate(model_id):
                     discovered.append(model_id)
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning(
@@ -931,13 +942,13 @@ class LotVisionAnalyzer:
             dict.fromkeys([*accessible_configured, *discovered])
         )
         LOGGER.info(
-            "Groq account model discovery returned %d chat candidate(s): %s",
+            "Groq account model discovery returned %d vision candidate(s): %s",
             len(self.models),
             ", ".join(self.models) if self.models else "none",
         )
         if not self.models:
             raise VisionModelPoolExhaustedError(
-                "Groq returned no active chat-model candidates for this account"
+                "Groq returned no active vision-model candidates for this account"
             )
 
     def _candidate_models(self) -> list[str]:
@@ -1010,11 +1021,21 @@ class LotVisionAnalyzer:
 
     @staticmethod
     def _is_json_mode_error(status_code: int, message: str) -> bool:
+        """Recognise recoverable Groq JSON-object generation failures."""
         lowered = message.casefold()
-        return status_code in {400, 422} and (
-            "response_format" in lowered
-            or "json mode" in lowered
-            or "json_object" in lowered
+        markers = (
+            "response_format",
+            "json mode",
+            "json_object",
+            "failed to validate json",
+            "failed_generation",
+            "failed generation",
+            "generated json does not match",
+            "json validation",
+            "schema validation",
+        )
+        return status_code in {400, 422} and any(
+            marker in lowered for marker in markers
         )
 
     def _post_model_request(
@@ -1099,7 +1120,7 @@ class LotVisionAnalyzer:
         transient_errors: list[str] = []
 
         for model in candidates:
-            json_mode = True
+            json_mode = model not in self._json_mode_disabled_models
             while True:
                 LOGGER.info("Trying Groq model %s", model)
                 response = self._post_model_request(
@@ -1195,8 +1216,9 @@ class LotVisionAnalyzer:
                 if json_mode and self._is_json_mode_error(
                     response.status_code, error_message
                 ):
+                    self._json_mode_disabled_models.add(model)
                     LOGGER.warning(
-                        "Groq model %s does not accept JSON mode; retrying it with prompt-only JSON instructions",
+                        "Groq model %s failed JSON object validation; retrying the same model with prompt-only JSON instructions",
                         model,
                     )
                     json_mode = False

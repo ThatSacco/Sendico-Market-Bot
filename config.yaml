@@ -55,9 +55,9 @@ vision:
   models:
     - "qwen/qwen3.6-27b"
 
-  # Query GET /openai/v1/models at the start of the first vision request and
-  # append other active account models. Models that do not support images are
-  # tested once, then skipped for the remainder of that scan.
+  # Query GET /openai/v1/models at the first vision request and append only
+  # model IDs that look image-capable. Text-only models are no longer tested
+  # after a vision quota error, avoiding the seven wasted calls seen in the run.
   auto_discover_models: true
   max_model_attempts_per_request: 8
   service_tier: "on_demand"
