@@ -40,16 +40,16 @@ sendico:
     screening_fallback_models:
       - "gemini-3.6-flash"
     screening_confidence_threshold: 0.45
-    max_screenings_per_run: 40
-    era_set_screening_limit: 40
-    generic_screening_limit: 5
+    max_screenings_per_run: 100
+    era_set_screening_limit: 100
+    generic_screening_limit: 20
     screening_max_overview_images: 4
     screening_max_dimension_px: 1400
     screening_jpeg_quality: 78
 
     # The token budget is the primary run stop. These secondary caps prevent
     # one run being dominated by unusually dense listings.
-    max_detailed_analyses_per_run: 12
+    max_detailed_analyses_per_run: 40
     detailed_max_overview_images: 10
     require_strong_lot_evidence: true
     lot_evidence_terms:
@@ -108,10 +108,10 @@ vision:
   # Target run usage: approximately 100,000-150,000 tokens. The scanner stops
   # before starting another request when the 5,000-token reserve would take it
   # beyond the 125,000-token target.
-  max_total_tokens_per_run: 125000
-  token_budget_reserve_per_request: 5000
-  max_listing_analyses_per_run: 12
-  max_vision_requests_per_run: 80
+  max_total_tokens_per_run: 300000
+  token_budget_reserve_per_request: 10000
+  max_listing_analyses_per_run: 50
+  max_vision_requests_per_run: 150
 
   crop_batch_size: 4
   request_spacing_seconds: 1.0
