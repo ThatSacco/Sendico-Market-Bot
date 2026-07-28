@@ -2,6 +2,11 @@ name: Scan Sendico Pokemon Deals
 
 on:
   workflow_dispatch:
+  schedule:
+    # Sydney midnight Thursday is Wednesday 13:00 UTC during AEDT and
+    # Wednesday 14:00 UTC during AEST. The guard permits only local midnight.
+    - cron: "0 13 * * 3"
+    - cron: "0 14 * * 3"
 
 permissions:
   contents: write
@@ -13,18 +18,41 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Check Sydney schedule
+        id: schedule_guard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          now = datetime.now(ZoneInfo("Australia/Sydney"))
+          should_run = event_name == "workflow_dispatch" or (
+              now.weekday() == 3 and now.hour == 0
+          )
+          print(f"Sydney time: {now.isoformat()}")
+          print(f"Workflow event: {event_name}")
+          print(f"Run scanner: {should_run}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"should_run={'true' if should_run else 'false'}\n")
+          PY
+
       - name: Set up Python
+        if: steps.schedule_guard.outputs.should_run == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        if: steps.schedule_guard.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -32,19 +60,22 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Compile source
+        if: steps.schedule_guard.outputs.should_run == 'true'
         run: python -m compileall -q src
 
       - name: Run tests
+        if: steps.schedule_guard.outputs.should_run == 'true'
         run: pytest -q
 
-      - name: Scan using watchlist searches
+      - name: Scan using watchlist-only two-pass pipeline
+        if: steps.schedule_guard.outputs.should_run == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python -m pokemon_deal_bot.updated_main --config config.yaml
+        run: python -m pokemon_deal_bot.main --config config.yaml
 
       - name: Persist scanner state and latest report
-        if: always()
+        if: always() && steps.schedule_guard.outputs.should_run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
