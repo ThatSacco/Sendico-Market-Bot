@@ -2,29 +2,29 @@
   "m51902266105": {
     "url": "https://sendico.com/shop/mercari/catalog/m51902266105",
     "fingerprint": "6913e017629640caf320b649b1b3fe990f52a2886590352c63e2a3a6a9469295",
-    "alerted_fingerprint": null,
-    "last_outcome": "error: All Groq model candidates are rate-limited, unavailable, or incompatible: qwen/qwen3.6-27b: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199860, Requested 4265. Please try again in 29m42s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing | allam-2-7b: messages[0].content must be a string | groq/compound: messages[0].content must be a string | groq/compound-mini: messages[0].content must be a string | llama-3.1-8b-instant: messages[0].content must be a string | llama-3.3-70b-versatile: messages[0].content must be a string | openai/gpt-oss-120b: messages[0].content must be a string | openai/gpt-oss-20b: messages[0].content must be a string",
-    "attempt_count": 2,
+    "alerted_fingerprint": "6913e017629640caf320b649b1b3fe990f52a2886590352c63e2a3a6a9469295",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 3,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-28T00:32:32.392560+00:00"
+    "last_checked": "2026-07-28T01:33:17.179619+00:00"
   },
   "m59706218310": {
     "url": "https://sendico.com/shop/mercari/catalog/m59706218310",
     "fingerprint": "3bb362cb79f51e980d5f45b56ea17e794e8437c993f6ef2f907aa355255b3876",
     "alerted_fingerprint": null,
-    "last_outcome": "error: All Groq model candidates are rate-limited, unavailable, or incompatible: qwen/qwen3.6-27b: Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01kyhcn5e9f8brnfycm13b1gv3` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197607, Requested 4276. Please try again in 13m33.456s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
-    "attempt_count": 1,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-28T00:48:44.337332+00:00"
+    "last_checked": "2026-07-28T01:32:28.508577+00:00"
   },
   "m46027044105": {
     "url": "https://sendico.com/shop/mercari/catalog/m46027044105",
     "fingerprint": "806af26b7b7b2aa7f8cc18eb0692904a247608efd6238eb741b3748a8870e166",
-    "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
-    "attempt_count": 2,
+    "alerted_fingerprint": "806af26b7b7b2aa7f8cc18eb0692904a247608efd6238eb741b3748a8870e166",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 3,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-28T00:30:24.654471+00:00"
+    "last_checked": "2026-07-28T01:32:46.110086+00:00"
   },
   "m89876449615": {
     "url": "https://sendico.com/shop/mercari/catalog/m89876449615",
@@ -39,54 +39,558 @@
     "url": "https://sendico.com/shop/mercari/catalog/m75471775610",
     "fingerprint": "5f47a9641006ed63c5e090eecbea0bfae73df22b1cd19a574873d93d267aedc8",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:23:02.717821+00:00"
+    "last_checked": "2026-07-28T01:33:34.271625+00:00"
   },
   "m13236704686": {
     "url": "https://sendico.com/shop/mercari/catalog/m13236704686",
     "fingerprint": "db998816878239331f79c866096ad20a5224c66bf5240ea3cb334e84a150c735",
-    "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "alerted_fingerprint": "db998816878239331f79c866096ad20a5224c66bf5240ea3cb334e84a150c735",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:24:07.347839+00:00"
+    "last_checked": "2026-07-28T01:33:51.609331+00:00"
   },
   "m71882046877": {
     "url": "https://sendico.com/shop/mercari/catalog/m71882046877",
     "fingerprint": "092e1f392a2caf697be615edc828d62fd2bef56ffc160141f9a3f02664ea8c81",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:25:12.271950+00:00"
+    "last_checked": "2026-07-28T01:34:11.708504+00:00"
   },
   "m53834294064": {
     "url": "https://sendico.com/shop/mercari/catalog/m53834294064",
     "fingerprint": "376529e03a46cef3048d72bfc1fe71d16816fb36119b4b3b4ee0e534a2203331",
-    "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "alerted_fingerprint": "376529e03a46cef3048d72bfc1fe71d16816fb36119b4b3b4ee0e534a2203331",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:26:17.316443+00:00"
+    "last_checked": "2026-07-28T01:34:29.593162+00:00"
   },
   "m90241316106": {
     "url": "https://sendico.com/shop/mercari/catalog/m90241316106",
     "fingerprint": "1019d19c216712650fd023ac0d1fd34d94ffed8b8973cdc8926c8bcc0941d25f",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
-    "attempt_count": 1,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 2,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:27:22.598688+00:00"
+    "last_checked": "2026-07-28T01:34:48.838108+00:00"
   },
   "m44987333069": {
     "url": "https://sendico.com/shop/mercari/catalog/m44987333069",
     "fingerprint": "1057a0122c535e15cd4a472d0ed80e27f7074d25167eb83fd66aa4702c0b754c",
+    "alerted_fingerprint": "1057a0122c535e15cd4a472d0ed80e27f7074d25167eb83fd66aa4702c0b754c",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 2,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:35:09.048871+00:00"
+  },
+  "m43271760960": {
+    "url": "https://sendico.com/shop/mercari/catalog/m43271760960",
+    "fingerprint": "10011a0ffa6aeffd9244b5ac763246269a6f2955dd6ac8cc25321c36bac620bc",
     "alerted_fingerprint": null,
-    "last_outcome": "error: Groq API returned HTTP 400 from model qwen/qwen3.6-27b: `service_tier` `auto` is not available for this org. You can check your plan at https://console.groq.com/settings/billing/plans, and upgrade to access the required service tier.",
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
     "attempt_count": 1,
     "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
-    "last_checked": "2026-07-27T23:28:27.530277+00:00"
+    "last_checked": "2026-07-28T01:35:27.355239+00:00"
+  },
+  "m75131794083": {
+    "url": "https://sendico.com/shop/mercari/catalog/m75131794083",
+    "fingerprint": "120a261375ec15bf8a6d7cd0e0a9c9c1cfddce8a94c4e7a14c75c3e87a96c748",
+    "alerted_fingerprint": "120a261375ec15bf8a6d7cd0e0a9c9c1cfddce8a94c4e7a14c75c3e87a96c748",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:35:44.037176+00:00"
+  },
+  "m71794194294": {
+    "url": "https://sendico.com/shop/mercari/catalog/m71794194294",
+    "fingerprint": "37a1a532daac9198a8f8fab1f93cd47b16f519a7b1f0bd56adb11762f8a120d6",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:36:01.731706+00:00"
+  },
+  "m49175745895": {
+    "url": "https://sendico.com/shop/mercari/catalog/m49175745895",
+    "fingerprint": "72a5bd04d07f3f9f3e972daf8e3bf4991b2a7b92ea5ec667559744e13d401f14",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:36:19.113884+00:00"
+  },
+  "m92710366308": {
+    "url": "https://sendico.com/shop/mercari/catalog/m92710366308",
+    "fingerprint": "922eda8883b1f2dcabc7dffae66167a027f249477a050d612ab61f22105798d0",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:36:38.302050+00:00"
+  },
+  "m73334506926": {
+    "url": "https://sendico.com/shop/mercari/catalog/m73334506926",
+    "fingerprint": "d34630567577a6c7ec13d9daa4f3327bc72e872bc5223fe6f91a292d35bb510f",
+    "alerted_fingerprint": "d34630567577a6c7ec13d9daa4f3327bc72e872bc5223fe6f91a292d35bb510f",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:36:55.744304+00:00"
+  },
+  "m73174602315": {
+    "url": "https://sendico.com/shop/mercari/catalog/m73174602315",
+    "fingerprint": "8ec1d0f473c839c651f94441b69b84fcfa7ccdc7ba269e94ceb4aa749293cb71",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:37:16.350459+00:00"
+  },
+  "m50207396263": {
+    "url": "https://sendico.com/shop/mercari/catalog/m50207396263",
+    "fingerprint": "9633eebec318b36a4f6e21e969fb3909d1b03840325949145a59f32069436d5c",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:37:44.370454+00:00"
+  },
+  "m24075102942": {
+    "url": "https://sendico.com/shop/mercari/catalog/m24075102942",
+    "fingerprint": "6ad05975d5f78a970e77065ef3d039d612807df6ba7af69f6dd4c5e042aba070",
+    "alerted_fingerprint": "6ad05975d5f78a970e77065ef3d039d612807df6ba7af69f6dd4c5e042aba070",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:38:04.373045+00:00"
+  },
+  "m95131723343": {
+    "url": "https://sendico.com/shop/mercari/catalog/m95131723343",
+    "fingerprint": "b4a42f18b851827a8f6b8e6870eff5ed3e051f0f236d9e54aa5691080490c1db",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:38:23.318952+00:00"
+  },
+  "m97486908420": {
+    "url": "https://sendico.com/shop/mercari/catalog/m97486908420",
+    "fingerprint": "8ff5ea8404edfd78d622ff6a143ef746edda1b04ed48385bd6236b2db208b54e",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:38:40.813531+00:00"
+  },
+  "m82235238259": {
+    "url": "https://sendico.com/shop/mercari/catalog/m82235238259",
+    "fingerprint": "fe1f2b17565d5b3185bcc7e798940cf471aac7ef3923d98e0440dcdd65937ee4",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:38:59.151426+00:00"
+  },
+  "m17497299565": {
+    "url": "https://sendico.com/shop/mercari/catalog/m17497299565",
+    "fingerprint": "9e33219051b8115043f9111c117469f9407126b559c9493450c847e36762ede3",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:39:16.205299+00:00"
+  },
+  "m18070570810": {
+    "url": "https://sendico.com/shop/mercari/catalog/m18070570810",
+    "fingerprint": "ec6ee906963cd07e7e959990aa78f1b5172b9c0284db9711c58611bb6f020e82",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:39:33.891796+00:00"
+  },
+  "m12473248955": {
+    "url": "https://sendico.com/shop/mercari/catalog/m12473248955",
+    "fingerprint": "a98b4b4f998de26c63e609b9493027610464abe309993ae4c9b1c04e1e7ffcec",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:39:50.951255+00:00"
+  },
+  "m91187091431": {
+    "url": "https://sendico.com/shop/mercari/catalog/m91187091431",
+    "fingerprint": "e27ba9d5b4f2684a0d19f2f8fa13a74b2d18103434b3addfcf38208020ce7ddc",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:40:11.169623+00:00"
+  },
+  "m51430223543": {
+    "url": "https://sendico.com/shop/mercari/catalog/m51430223543",
+    "fingerprint": "417429e56b0e35b7949b52d73652f56fb1b800c9a659f523715468a783ebe358",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:40:34.283272+00:00"
+  },
+  "m66496965521": {
+    "url": "https://sendico.com/shop/mercari/catalog/m66496965521",
+    "fingerprint": "b5257fb59a5dbbcdef093945f589a09b5026297dafa2ebc0fb7311adae975897",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:40:53.360931+00:00"
+  },
+  "m30876445351": {
+    "url": "https://sendico.com/shop/mercari/catalog/m30876445351",
+    "fingerprint": "292f93718623befe3c6f0cfab9738308096a5f4fb6e3e7de2ee2172d823a418d",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:41:11.053878+00:00"
+  },
+  "m32611084605": {
+    "url": "https://sendico.com/shop/mercari/catalog/m32611084605",
+    "fingerprint": "79642cdc0a290b4dff30df9c5e0f09cda8d633d7c4b89658bb9c2f278b749612",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:41:28.340888+00:00"
+  },
+  "2JTwvyNqsAQBQtUW2MsT9Q": {
+    "url": "https://sendico.com/shop/mercari/catalog/2JTwvyNqsAQBQtUW2MsT9Q",
+    "fingerprint": "877e3777b387315c07a3e904cfc0b23c877ee035acd561bade0c56628f7de263",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: No listing images could be downloaded for Gemini analysis",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:41:42.701855+00:00"
+  },
+  "m84656955153": {
+    "url": "https://sendico.com/shop/mercari/catalog/m84656955153",
+    "fingerprint": "d6e6d126d90cd742dd919b832a9d61521290c18a2d63a656dd269ceadf5306ee",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:42:07.273471+00:00"
+  },
+  "m66117826248": {
+    "url": "https://sendico.com/shop/mercari/catalog/m66117826248",
+    "fingerprint": "a7d43f8dcb59f71f5eec5ae5ac507f59c16d0576e0246d277cd577141b809798",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:42:26.146573+00:00"
+  },
+  "m51556654949": {
+    "url": "https://sendico.com/shop/mercari/catalog/m51556654949",
+    "fingerprint": "da92decc71fa2dfcdcf7e657a6ff406b367d44e7ab57260868e761574ef39699",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:42:47.811937+00:00"
+  },
+  "m87429851387": {
+    "url": "https://sendico.com/shop/mercari/catalog/m87429851387",
+    "fingerprint": "c914fac6051d2eb54ff3aa0ebfb4d67a5407ceb3c40e96fc130373d5dea3c2cb",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:43:07.755391+00:00"
+  },
+  "m19129864441": {
+    "url": "https://sendico.com/shop/mercari/catalog/m19129864441",
+    "fingerprint": "eaebf6bc12f5d11a704933600045db57ec7ff18c394e77eebf38a46316d5b657",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:43:26.223138+00:00"
+  },
+  "m30392510308": {
+    "url": "https://sendico.com/shop/mercari/catalog/m30392510308",
+    "fingerprint": "f4bd0dcab435a58b01d1c89fbf9cea49b5ba62054f89b9fe08e91dbb8ce9f0e7",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:43:43.000435+00:00"
+  },
+  "m68147656634": {
+    "url": "https://sendico.com/shop/mercari/catalog/m68147656634",
+    "fingerprint": "ac261029becc1576df97a254dbf549bf2e6d420cefedf440fc3762f6cfd29072",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:44:00.408112+00:00"
+  },
+  "m98815410096": {
+    "url": "https://sendico.com/shop/mercari/catalog/m98815410096",
+    "fingerprint": "a552940796fdab35b9f93aceeea56e91869b1802928682ac8c5476dc88d3de61",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:44:18.150038+00:00"
+  },
+  "m19819094871": {
+    "url": "https://sendico.com/shop/mercari/catalog/m19819094871",
+    "fingerprint": "37ec504b8a72f1f8efee5f52ea6b6456f9ec66541ffa5a753f80488685452bfd",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:44:36.771413+00:00"
+  },
+  "m90681811569": {
+    "url": "https://sendico.com/shop/mercari/catalog/m90681811569",
+    "fingerprint": "10bccdd1f659af5467b7037f52db752e7cbdf4f6af49b02cbc6e156582549b89",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:45:01.452403+00:00"
+  },
+  "m38895066343": {
+    "url": "https://sendico.com/shop/mercari/catalog/m38895066343",
+    "fingerprint": "2142324c348f19142aa6d2295e1467b0a629e373e2a52f731564136a5168f1ca",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:45:20.951395+00:00"
+  },
+  "m12282617242": {
+    "url": "https://sendico.com/shop/mercari/catalog/m12282617242",
+    "fingerprint": "cc7289a4736d395b11de34a8ba3f871e1926d53bd0abe6760cf1c336e245a8d0",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:45:37.128414+00:00"
+  },
+  "m56831297133": {
+    "url": "https://sendico.com/shop/mercari/catalog/m56831297133",
+    "fingerprint": "5a97c491e6cac355bfccace3f67e51fd86c649e089155cdc1e540f91cd23fcf6",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:45:55.726567+00:00"
+  },
+  "m58880728398": {
+    "url": "https://sendico.com/shop/mercari/catalog/m58880728398",
+    "fingerprint": "c8d8375b2a3aabed2b9409db6251eedfb928616fc08c09e3467a66b60e1da908",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:46:14.049307+00:00"
+  },
+  "m79759645684": {
+    "url": "https://sendico.com/shop/mercari/catalog/m79759645684",
+    "fingerprint": "70193a88f024092e92e29a89a7434aaa7b04bbc10d40c7885f3c0d04e860ad71",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:46:41.015192+00:00"
+  },
+  "m56146085530": {
+    "url": "https://sendico.com/shop/mercari/catalog/m56146085530",
+    "fingerprint": "641f6ae156508944534dabe3f4de1eaddf0dadf7762f263bc278dd77f1100cd7",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:47:01.109247+00:00"
+  },
+  "m40880233049": {
+    "url": "https://sendico.com/shop/mercari/catalog/m40880233049",
+    "fingerprint": "a49882b7de1120f7acd9ec48d53f70c3b1133b33a303655607b0464dfdd09837",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:47:19.337557+00:00"
+  },
+  "m95719663866": {
+    "url": "https://sendico.com/shop/mercari/catalog/m95719663866",
+    "fingerprint": "b83cf0539beed3f75e84edc0c2978d2d1a8cf2b8010543d9fb4e58b3b871cd66",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:47:41.182681+00:00"
+  },
+  "m68301866056": {
+    "url": "https://sendico.com/shop/mercari/catalog/m68301866056",
+    "fingerprint": "fdf8826e7e30cfb86598aa891488d73f870f190e8b3f05d52338f359ee0df556",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:48:14.348517+00:00"
+  },
+  "m80286878747": {
+    "url": "https://sendico.com/shop/mercari/catalog/m80286878747",
+    "fingerprint": "8920075b4354f5eabe4cad9ec139a04af9e07ff5f1832ba2d82314696f20a60b",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:48:31.308832+00:00"
+  },
+  "m60298400993": {
+    "url": "https://sendico.com/shop/mercari/catalog/m60298400993",
+    "fingerprint": "45932eef12a65f95c0cd7214fe4e35e92de621be1046bbf2a8bc44700fbb6d02",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:48:51.612685+00:00"
+  },
+  "m97877575410": {
+    "url": "https://sendico.com/shop/mercari/catalog/m97877575410",
+    "fingerprint": "75f119a01d36507cdbdd02d022dba699c82aa3287c700a540c618dc92dafcd88",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:49:13.207763+00:00"
+  },
+  "m59579067217": {
+    "url": "https://sendico.com/shop/mercari/catalog/m59579067217",
+    "fingerprint": "9f53b55f82b85def51a17d8e3e6cf37d6f0ea789e9a94f07f9439d3393a8b88c",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:49:32.694191+00:00"
+  },
+  "m58568457443": {
+    "url": "https://sendico.com/shop/mercari/catalog/m58568457443",
+    "fingerprint": "76307e79d7c8ad2ad7b896a096388fe8e7e3e05ebc5fd7d25b7c5278fe553bb2",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:49:51.590037+00:00"
+  },
+  "m41798608950": {
+    "url": "https://sendico.com/shop/mercari/catalog/m41798608950",
+    "fingerprint": "47c220eafa402450581d37aa79e691800b5d4300aadb1718c88cb4c71f966fb0",
+    "alerted_fingerprint": "47c220eafa402450581d37aa79e691800b5d4300aadb1718c88cb4c71f966fb0",
+    "last_outcome": "provisional deal; seller rating requires manual verification",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:50:09.347934+00:00"
+  },
+  "m49746054827": {
+    "url": "https://sendico.com/shop/mercari/catalog/m49746054827",
+    "fingerprint": "4d18bc5087c6c99d11334df055fb731dbe2189cc16ff8d160a3a6d38391c7190",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:50:26.356003+00:00"
+  },
+  "m65309279898": {
+    "url": "https://sendico.com/shop/mercari/catalog/m65309279898",
+    "fingerprint": "d569761430f1596776f4b4a8865b755b188b46052540441ea975a8b5bc2a67c7",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:50:44.424668+00:00"
+  },
+  "m27412776299": {
+    "url": "https://sendico.com/shop/mercari/catalog/m27412776299",
+    "fingerprint": "a1981c657d8631282f6cc3cb217ec5c5e8e04b415f63e536cea6dadcc185102b",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:51:04.755740+00:00"
+  },
+  "m19330999732": {
+    "url": "https://sendico.com/shop/mercari/catalog/m19330999732",
+    "fingerprint": "f888e5c0f16285e7d300cb448148427fb9f79540b264e43961db1ebe7a451c98",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:51:27.672295+00:00"
+  },
+  "m18773693906": {
+    "url": "https://sendico.com/shop/mercari/catalog/m18773693906",
+    "fingerprint": "9d31fbca41b5838603e1d03fa0db3af686cb42a361b107a114b79ec77a722c4e",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:51:47.647458+00:00"
+  },
+  "m96222519124": {
+    "url": "https://sendico.com/shop/mercari/catalog/m96222519124",
+    "fingerprint": "d20f9f13971ad492db2340851a67e40581aff554f209ee632292ea5d96e06d7f",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:52:07.478780+00:00"
+  },
+  "m80133792738": {
+    "url": "https://sendico.com/shop/mercari/catalog/m80133792738",
+    "fingerprint": "69a7c159c191f3fdda1652d6353ecaf649297c6b4142ff41e4256946ee5b470c",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:52:26.152902+00:00"
+  },
+  "m55293853544": {
+    "url": "https://sendico.com/shop/mercari/catalog/m55293853544",
+    "fingerprint": "6ce30942fb54e809d800b7a0d69192b991f6aee0019e987456686093ccbcfab1",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:52:43.559236+00:00"
+  },
+  "2JSuVjDg6vAnHaVKxpugDx": {
+    "url": "https://sendico.com/shop/mercari/catalog/2JSuVjDg6vAnHaVKxpugDx",
+    "fingerprint": "1c11b7ede8e600a397976c98bde696ae8c6f71623ba38f4f438e9ec90932b18c",
+    "alerted_fingerprint": null,
+    "last_outcome": "error: No listing images could be downloaded for Gemini analysis",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:52:58.346281+00:00"
+  },
+  "m55037466521": {
+    "url": "https://sendico.com/shop/mercari/catalog/m55037466521",
+    "fingerprint": "2ec01a7f8167e608db38f9f5100ba509c96d1c62fd78da324c099bcf64519c70",
+    "alerted_fingerprint": null,
+    "last_outcome": "seller positive rating could not be verified; no watchlist target was confirmed; watchlist-match confidence is below threshold; watchlist target could not be priced; no cards were priced",
+    "attempt_count": 1,
+    "scan_signature": "d1aa5fef41577faa487ee5f3923cc8cc34b735481ac6ae828576b8e5bd36fbd9",
+    "last_checked": "2026-07-28T01:53:30.341505+00:00"
   }
 }
