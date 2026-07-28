@@ -234,7 +234,7 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         max_model_attempts_per_request=int(
             vision_cfg.get("max_model_attempts_per_request", 8)
         ),
-        service_tier=str(vision_cfg.get("service_tier", "auto")),
+        service_tier=str(vision_cfg.get("service_tier", "on_demand")),
         max_images=int(vision_cfg["max_images_per_listing"]),
         max_local_crops=int(vision_cfg.get("max_local_crops_per_listing", 40)),
         crop_batch_size=int(vision_cfg.get("crop_batch_size", 4)),

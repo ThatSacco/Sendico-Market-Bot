@@ -122,7 +122,7 @@ vision:
     - "qwen/qwen3.6-27b"
   auto_discover_models: true
   max_model_attempts_per_request: 8
-  service_tier: "auto"
+  service_tier: "on_demand"
 ```
 
 You may add any Groq model ID permitted for your account. For each card batch, the scanner:

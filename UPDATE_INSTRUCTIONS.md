@@ -1,4 +1,4 @@
-# Groq multi-model fallback update
+# Groq service-tier compatibility update
 
 Upload the contents of this ZIP to the repository root and replace matching files.
 
@@ -12,9 +12,9 @@ This update does not contain or replace:
 
 ## What changed
 
-- Accepts an ordered `vision.models` list instead of relying on one model.
-- Uses the Groq Models API to discover models enabled for the API key.
-- Switches to another model when one is rate-limited, unavailable, deprecated, permission-blocked, or incompatible with image input.
+- Keeps the existing ordered `vision.models` pool and account model discovery.
+- Changes the default Groq service tier from `auto` to `on_demand`.
+- Retries the same model with `on_demand`, then with the service-tier field omitted, when an organisation rejects the configured tier.
 - Keeps the last successful model at the front of the pool for later batches.
 - Applies the 65-second request spacing per model, so switching models does not create an unnecessary one-minute delay.
 - Retries a model without `response_format` if that model accepts vision but not JSON mode.
@@ -31,7 +31,7 @@ vision:
     - "qwen/qwen3.6-27b"
   auto_discover_models: true
   max_model_attempts_per_request: 8
-  service_tier: "auto"
+  service_tier: "on_demand"
 ```
 
 You may add any Groq model ID enabled for the account. Automatically discovered models are appended. Models still need image-input support for card recognition; text-only models are skipped after their first compatibility error.
@@ -44,4 +44,4 @@ You may add any Groq model ID enabled for the account. Automatically discovered 
 4. Run **Scan Sendico Pokemon Deals** manually.
 5. Review the log for `Trying Groq model ...` and the Discord completion summary for the models used.
 
-Validation for this package: Python compilation passed and 78 automated tests passed.
+Validation for this package: Python compilation passed. Run the repository test workflow after upload to validate against the complete GitHub checkout.
