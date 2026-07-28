@@ -6,6 +6,7 @@ import yaml
 from pokemon_deal_bot.config import (
     AppConfig,
     load_watchlist,
+    watchlist_lot_search_terms,
     watchlist_search_terms,
     watchlist_signature,
 )
@@ -26,6 +27,10 @@ def test_watchlist_supports_multiple_active_modes(tmp_path: Path):
                         "english_name": "Ampharos EX",
                         "card_number": "027/081",
                         "search_terms": ["Ampharos EX 027/081"],
+                        "lot_search_terms": [
+                            "デンリュウ まとめ",
+                            "Ampharos Pokemon card lot",
+                        ],
                     },
                     {
                         "id": "tyranitar",
@@ -45,6 +50,28 @@ def test_watchlist_supports_multiple_active_modes(tmp_path: Path):
     assert watchlist_search_terms(cards) == [
         "Ampharos EX 027/081",
         "Tyranitar Neo Japanese",
+    ]
+    assert watchlist_lot_search_terms(cards) == [
+        "デンリュウ まとめ",
+        "Ampharos Pokemon card lot",
+    ]
+
+
+def test_lot_search_terms_are_cleaned_and_deduplicated():
+    card = WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        card_number="027/081",
+        lot_search_terms=[
+            " デンリュウ まとめ ",
+            "デンリュウ まとめ",
+            "Ampharos Pokemon card lot",
+        ],
+    )
+    assert watchlist_lot_search_terms([card]) == [
+        "デンリュウ まとめ",
+        "Ampharos Pokemon card lot",
     ]
 
 

@@ -8,6 +8,7 @@ import unicodedata
 from .config import (
     load_config,
     load_watchlist,
+    watchlist_lot_search_terms,
     watchlist_search_terms,
     watchlist_signature,
 )
@@ -57,6 +58,21 @@ def _compact_search(value: str | None) -> str:
     return "".join(character for character in normalized if character.isalnum())
 
 
+_LOT_MARKERS = (
+    "lot",
+    "collection",
+    "bundle",
+    "まとめ",
+    "セット",
+    "引退",
+    "大量",
+)
+
+
+def _contains_lot_marker(haystack: str) -> bool:
+    return any(_compact_search(term) in haystack for term in _LOT_MARKERS)
+
+
 def _candidate_relevance_score(
     listing: SendicoListing,
     targets,
@@ -74,6 +90,7 @@ def _candidate_relevance_score(
         return 0
 
     best = 0
+    lot_match = _contains_lot_marker(haystack)
     for target in targets:
         score = 0
         names = [
@@ -86,6 +103,11 @@ def _candidate_relevance_score(
         )
         if name_match:
             score += 60
+            if lot_match:
+                # Pokemon name plus an explicit lot marker is the intended
+                # Tier 2 opportunity: broader than an exact card listing, but
+                # still much more relevant than a generic collection.
+                score += 40
 
         if target.match_mode == "exact_card" and target.card_number:
             full_number = _compact_search(target.card_number)
@@ -120,19 +142,64 @@ def _candidate_relevance_score(
     # Keep generic multi-card lots as low-priority candidates because the target
     # may be visible in the photos even when the seller did not name it. Strong
     # explicit matches are always ranked ahead of these fallback candidates.
-    if best == 0:
-        generic_lot_terms = [
-            "lot",
-            "collection",
-            "bundle",
-            "まとめ",
-            "セット",
-            "引退",
-            "大量",
-        ]
-        if any(_compact_search(term) in haystack for term in generic_lot_terms):
-            return 5
+    if best == 0 and lot_match:
+        return 5
     return best
+
+
+def _is_tier2_only(sources: set[str]) -> bool:
+    return (
+        "tier2_lot" in sources
+        and "watchlist" not in sources
+        and "direct" not in sources
+    )
+
+
+def _rank_candidate_pool(
+    candidates: dict[str, SendicoListing],
+    candidate_sources: dict[str, set[str]],
+    targets,
+    *,
+    direct_codes: set[str],
+    prefilter_enabled: bool,
+    allow_tier2_query_only: bool,
+) -> tuple[list[SendicoListing], int, int]:
+    """Rank exact/watchlist results first and Tier 2-only lots second.
+
+    A Tier 2 query can return a listing whose visible search-result text does not
+    repeat the Pokemon name. When explicitly enabled, those query-only results are
+    retained at the lowest priority so Gemini can inspect the photos. The Gemini
+    analysis cap is applied later, after unchanged listings have been skipped, so
+    additional Tier 2 candidates can rotate into subsequent runs.
+    """
+    regular_ranked: list[tuple[int, SendicoListing]] = []
+    tier2_ranked: list[tuple[int, SendicoListing]] = []
+    prefiltered_out = 0
+
+    for candidate in candidates.values():
+        sources = candidate_sources.get(candidate.code, set())
+        if candidate.code in direct_codes:
+            score = 10_000
+        else:
+            score = _candidate_relevance_score(candidate, targets)
+
+        tier2_only = _is_tier2_only(sources)
+        if score <= 0:
+            if tier2_only and allow_tier2_query_only:
+                score = 1
+            elif prefilter_enabled:
+                prefiltered_out += 1
+                continue
+
+        destination = tier2_ranked if tier2_only else regular_ranked
+        destination.append((score, candidate))
+
+    regular_ranked.sort(key=lambda item: item[0], reverse=True)
+    tier2_ranked.sort(key=lambda item: item[0], reverse=True)
+
+    selected = [candidate for _, candidate in regular_ranked]
+    selected.extend(candidate for _, candidate in tier2_ranked)
+    return selected, prefiltered_out, len(tier2_ranked)
 
 
 async def run(config_path: str, dry_run: bool = False) -> int:
@@ -292,11 +359,15 @@ async def run(config_path: str, dry_run: bool = False) -> int:
         ),
     )
     state = StateStore(config.path("data/seen.json"))
-    candidates = {}
+    candidates: dict[str, SendicoListing] = {}
+    candidate_sources: dict[str, set[str]] = {}
     assessments: list[DealAssessment] = []
     direct_codes: set[str] = set()
     discovered_count = 0
     prefiltered_out = 0
+    tier2_selected_count = 0
+    tier2_analyses_started = 0
+    tier2_held_count = 0
     hydrated_count = 0
     unchanged_skipped = 0
     seller_filtered = 0
@@ -323,23 +394,42 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                     title="Direct test listing",
                     price_yen=0,
                 )
+                candidate_sources.setdefault(code, set()).add("direct")
                 LOGGER.info("Queued direct test listing: %s", direct_url)
 
+            sendico_cfg = config.raw["sendico"]
             configured_terms = watchlist_search_terms(targets)
-            if bool(config.raw["sendico"].get("use_legacy_config_search_terms", False)):
+            if bool(sendico_cfg.get("use_legacy_config_search_terms", False)):
                 configured_terms = list(
                     dict.fromkeys(
                         [
                             *configured_terms,
                             *(
                                 str(term).strip()
-                                for term in config.raw["sendico"].get("search_terms", [])
+                                for term in sendico_cfg.get("search_terms", [])
                                 if str(term).strip()
                             ),
                         ]
                     )
                 )
-            if not configured_terms and not direct_urls:
+
+            tier2_cfg = sendico_cfg.get("tier2_lot_search", {}) or {}
+            tier2_enabled = bool(tier2_cfg.get("enabled", False))
+            tier2_terms = (
+                watchlist_lot_search_terms(targets) if tier2_enabled else []
+            )
+            # A term already used by the normal watchlist search does not need a
+            # second marketplace request. It remains classified as a normal result.
+            tier2_terms = [
+                term for term in tier2_terms if term not in set(configured_terms)
+            ]
+            if tier2_enabled and not tier2_terms:
+                LOGGER.warning(
+                    "Tier 2 lot search is enabled, but no active watchlist entry "
+                    "contains lot_search_terms"
+                )
+
+            if not configured_terms and not tier2_terms and not direct_urls:
                 raise RuntimeError(
                     "No Sendico search terms were produced by the active watchlist"
                 )
@@ -353,19 +443,34 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 and test_cfg.get("skip_search_when_direct_urls", True)
             )
             if skip_search_for_direct_test:
-                search_terms: list[str] = []
+                search_plan: list[tuple[str, str]] = []
                 LOGGER.info(
                     "Direct test mode: skipping category searches and hydrating "
                     "%d direct listing(s)",
                     len(direct_urls),
                 )
             else:
-                search_terms = list(
-                    dict.fromkeys([*sorted(direct_codes), *configured_terms])
-                )
+                search_plan = [
+                    *(("direct", code) for code in sorted(direct_codes)),
+                    *(("watchlist", term) for term in configured_terms),
+                    *(("tier2_lot", term) for term in tier2_terms),
+                ]
 
-            for term in search_terms:
-                LOGGER.info("Searching Sendico Mercari: %s", term)
+            tier2_results_per_search = max(
+                0,
+                int(tier2_cfg.get("max_results_per_search", 30)),
+            )
+            search_labels = {
+                "direct": "direct listing",
+                "watchlist": "watchlist",
+                "tier2_lot": "Tier 2 lot",
+            }
+            for source, term in search_plan:
+                LOGGER.info(
+                    "Searching Sendico Mercari [%s]: %s",
+                    search_labels[source],
+                    term,
+                )
                 try:
                     found_results = await scanner.search(term)
                 except Exception as exc:  # noqa: BLE001 - a search must not abort a run
@@ -376,48 +481,63 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         exc,
                     )
                     continue
+
+                if source == "tier2_lot" and tier2_results_per_search > 0:
+                    found_results = found_results[:tier2_results_per_search]
+
                 for found_listing in found_results:
                     existing = candidates.get(found_listing.code)
                     if existing is None:
                         candidates[found_listing.code] = found_listing
                     else:
                         _merge_listing(existing, found_listing)
+                    candidate_sources.setdefault(found_listing.code, set()).add(source)
 
             discovered_count = len(candidates)
             prefilter_enabled = bool(
-                config.raw["sendico"].get("prefilter_watchlist_relevance", True)
+                sendico_cfg.get("prefilter_watchlist_relevance", True)
             )
-            ranked_candidates: list[tuple[int, SendicoListing]] = []
-            for candidate in candidates.values():
-                if candidate.code in direct_codes:
-                    score = 10_000
-                else:
-                    score = _candidate_relevance_score(candidate, targets)
-                if prefilter_enabled and score <= 0:
-                    prefiltered_out += 1
-                    LOGGER.info(
-                        "Skipping search result %s before hydration/Gemini: no "
-                        "watchlist name, number or set evidence in its result text",
-                        candidate.code,
-                    )
-                    continue
-                ranked_candidates.append((score, candidate))
+            (
+                listings_to_process,
+                prefiltered_out,
+                tier2_selected_count,
+            ) = _rank_candidate_pool(
+                candidates,
+                candidate_sources,
+                targets,
+                direct_codes=direct_codes,
+                prefilter_enabled=prefilter_enabled,
+                allow_tier2_query_only=bool(
+                    tier2_cfg.get("allow_query_only_candidates", True)
+                ),
+            )
 
-            ranked_candidates.sort(key=lambda item: item[0], reverse=True)
-            listings_to_process = [candidate for _, candidate in ranked_candidates]
-            limit = int(config.raw["sendico"].get("max_listings_per_run", 0))
+            limit = int(sendico_cfg.get("max_listings_per_run", 0))
             if limit > 0:
                 listings_to_process = listings_to_process[:limit]
 
-            LOGGER.info(
-                "Search found %d unique listing(s); %d passed local relevance "
-                "filtering and %d were filtered before Gemini",
-                discovered_count,
-                len(listings_to_process),
-                prefiltered_out,
+            tier2_selected_count = sum(
+                1
+                for listing in listings_to_process
+                if _is_tier2_only(candidate_sources.get(listing.code, set()))
+            )
+            tier2_analysis_limit = max(
+                0,
+                int(tier2_cfg.get("max_analyses_per_run", 20)),
             )
 
-            for listing in listings_to_process:
+            LOGGER.info(
+                "Search found %d unique listing(s); %d selected for processing "
+                "including %d Tier 2 lot candidate(s); %d filtered before Gemini; "
+                "Tier 2 Gemini analysis cap: %s",
+                discovered_count,
+                len(listings_to_process),
+                tier2_selected_count,
+                prefiltered_out,
+                tier2_analysis_limit or "unlimited",
+            )
+
+            for listing_index, listing in enumerate(listings_to_process):
                 try:
                     listing = await scanner.hydrate(listing)
                     hydrated_count += 1
@@ -480,6 +600,29 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                             seller_filtered += 1
                             continue
 
+                    tier2_only = _is_tier2_only(
+                        candidate_sources.get(listing.code, set())
+                    )
+                    if (
+                        tier2_only
+                        and tier2_analysis_limit > 0
+                        and tier2_analyses_started >= tier2_analysis_limit
+                    ):
+                        tier2_held_count = sum(
+                            1
+                            for remaining in listings_to_process[listing_index:]
+                            if _is_tier2_only(
+                                candidate_sources.get(remaining.code, set())
+                            )
+                        )
+                        LOGGER.info(
+                            "Tier 2 Gemini analysis cap of %d reached; %d remaining "
+                            "Tier 2 candidate(s) will be reconsidered on the next run",
+                            tier2_analysis_limit,
+                            tier2_held_count,
+                        )
+                        break
+
                     max_vision_listings = max(
                         0,
                         int(vision_cfg.get("max_listing_analyses_per_run", 10)),
@@ -497,6 +640,8 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                         break
 
                     vision_analyses_started += 1
+                    if tier2_only:
+                        tier2_analyses_started += 1
                     vision_result = await asyncio.to_thread(
                         vision.analyze,
                         listing,
@@ -738,6 +883,9 @@ async def run(config_path: str, dry_run: bool = False) -> int:
                 discovered=discovered_count,
                 prefiltered_out=prefiltered_out,
                 hydrated=hydrated_count,
+                tier2_selected=tier2_selected_count,
+                tier2_analysed=tier2_analyses_started,
+                tier2_held=tier2_held_count,
                 unchanged_skipped=unchanged_skipped,
                 seller_filtered=seller_filtered,
                 analysed=vision_analyses_started,
@@ -755,10 +903,12 @@ async def run(config_path: str, dry_run: bool = False) -> int:
             LOGGER.exception("Could not send the Discord scan-completion summary")
 
     LOGGER.info(
-        "Completed: %d discovered, %d filtered before Gemini, %d assessments, "
-        "%d strict qualifying, %d provisional, %d deal alerts, %d test alerts, "
-        "%d Gemini requests%s",
+        "Completed: %d discovered, %d Tier 2 candidates, %d Tier 2 analysed, "
+        "%d filtered before Gemini, %d assessments, %d strict qualifying, "
+        "%d provisional, %d deal alerts, %d test alerts, %d Gemini requests%s",
         discovered_count,
+        tier2_selected_count,
+        tier2_analyses_started,
         prefiltered_out,
         len(assessments),
         strict_count,

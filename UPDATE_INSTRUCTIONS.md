@@ -1,33 +1,74 @@
-# Gemini paid-vision update
+# Tier 2 Pokemon Lot Search Update
+
+## Purpose
+
+This update keeps the existing exact-card searches and adds a controlled Tier 2 search for multi-card listings that mention the desired Pokemon.
+
+The current Ampharos test adds these marketplace terms:
+
+- `デンリュウ まとめ`
+- `デンリュウ セット`
+- `デンリュウ ポケカ まとめ`
+- `デンリュウ コレクション`
+- `Ampharos Pokemon card lot`
+
+Gemini must still identify **Ampharos EX 027/081** before the existing exact-card watchlist rule can match.
+
+## Test limits
+
+The initial configuration uses:
+
+```yaml
+sendico:
+  tier2_lot_search:
+    enabled: true
+    max_results_per_search: 30
+    max_analyses_per_run: 20
+    allow_query_only_candidates: true
+```
+
+Normal watchlist results are processed first. At most 20 listings found only through Tier 2 searches are sent to Gemini in one run. The cap is applied after unchanged listings are skipped, so additional lot candidates rotate into later runs instead of the same previously processed candidates occupying the cap. Duplicate listings found by both normal and Tier 2 searches are merged and treated as normal watchlist results.
+
+`allow_query_only_candidates: true` permits Gemini to inspect a Tier 2 result even when Sendico's shortened result text does not repeat the Pokemon name. The separate 20-listing cap limits the additional paid vision usage.
 
 ## Upload
 
-Upload the package contents to the repository root and allow matching files to be replaced. The new file `src/pokemon_deal_bot/gemini_vision.py` must retain that folder path.
+Upload the contents of this package to the repository root, preserving all folder paths and replacing matching files.
 
-## GitHub Actions secrets
+The package does not contain or replace:
 
-In **Settings -> Secrets and variables -> Actions**, create or update:
+- `data/seen.json`
+- reports
+- PriceCharting cache files
+- GitHub secrets
+
+No new secret is required. Continue using `GEMINI_API_KEY` and `DISCORD_WEBHOOK_URL`.
+
+## Expected log output
+
+A run should include lines similar to:
 
 ```text
-GEMINI_API_KEY
-DISCORD_WEBHOOK_URL
+Searching Sendico Mercari [watchlist]: デンリュウEX 027/081
+Searching Sendico Mercari [Tier 2 lot]: デンリュウ まとめ
+Search found ... including ... Tier 2 lot candidate(s)
 ```
 
-The secret name must be exactly `GEMINI_API_KEY`. The production workflow no longer reads `GROQ_API_KEY`; remove the old secret after the Gemini scan succeeds.
+The Discord completion summary will also show:
 
-## Recommended first run
+```text
+Tier 2 candidates
+Tier 2 analysed
+Tier 2 held after cap
+```
 
-1. Run the normal test workflow.
-2. Confirm the test suite passes.
-3. Manually run the scan workflow.
-4. Check the log for `Trying Gemini model gemini-3.6-flash`.
-5. Confirm the log shows `POST https://generativelanguage.googleapis.com/v1beta/interactions`.
-6. Confirm the Discord completion summary shows the Gemini model and token usage.
+## Validation
 
-## Expected fallback behaviour
+The packaged code was checked with:
 
-- Temporary 429/5xx: retry the same model with backoff.
-- Primary unavailable: move to `gemini-3.5-flash-lite`.
-- Structured-output field rejected or unusable JSON returned: retry with prompt-only JSON.
-- Invalid API key, disabled API, billing, or permission issue: stop with a clear authentication/billing error.
-- Run limit reached: save state and stop cleanly so later listings can continue on the next run.
+```text
+python -m compileall -q src
+pytest -q
+```
+
+Result: **81 tests passed**.

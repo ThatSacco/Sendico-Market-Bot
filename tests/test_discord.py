@@ -179,6 +179,9 @@ def test_scan_summary_reports_zero_alert_completed_run():
         discovered=68,
         prefiltered_out=58,
         hydrated=10,
+        tier2_selected=8,
+        tier2_analysed=5,
+        tier2_held=3,
         unchanged_skipped=2,
         seller_filtered=1,
         analysed=7,
@@ -194,6 +197,10 @@ def test_scan_summary_reports_zero_alert_completed_run():
     )
 
     assert embed["title"] == "SENDICO SCAN COMPLETED"
+    listings = next(field for field in embed["fields"] if field["name"] == "Listings")
+    assert "Tier 2 candidates: **8**" in listings["value"]
+    assert "Tier 2 analysed: **5**" in listings["value"]
+    assert "Tier 2 held after cap: **3**" in listings["value"]
     results = next(field for field in embed["fields"] if field["name"] == "Results")
     assert "Deal alerts sent: **0**" in results["value"]
 

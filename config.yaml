@@ -31,6 +31,20 @@ sendico:
   max_results_per_search: 0
   max_listings_per_run: 0
   prefilter_watchlist_relevance: true
+
+  # Tier 2 broad-lot test. Exact watchlist searches still run first. These
+  # additional Pokemon-name-plus-lot terms are read from lot_search_terms in
+  # data/watchlist.yaml. Query-only results may reach Gemini even when the
+  # search-result title does not repeat the target name, but the separate cap
+  # prevents broad searches from consuming the full paid-vision budget.
+  tier2_lot_search:
+    enabled: true
+    max_results_per_search: 30
+    # Applied after previously processed listings are skipped, allowing later
+    # lot candidates to rotate into future runs without increasing Gemini use.
+    max_analyses_per_run: 20
+    allow_query_only_candidates: true
+
   page_timeout_ms: 60000
 
   # Zero means no fixed scroll-round cap. Scrolling stops after three rounds

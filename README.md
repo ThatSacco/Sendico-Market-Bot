@@ -93,9 +93,32 @@ cards:
     search_terms:
       - "デンリュウEX 027/081"
       - "Ampharos EX 027/081 Japanese"
+    lot_search_terms:
+      - "デンリュウ まとめ"
+      - "デンリュウ セット"
+      - "デンリュウ ポケカ まとめ"
+      - "デンリュウ コレクション"
+      - "Ampharos Pokemon card lot"
 ```
 
 The Pokemon name and printed card number must match. Set information is checked when Gemini can read it.
+
+### Tier 2 Pokemon lot search
+
+`lot_search_terms` are optional, broader marketplace searches intended to find multi-card listings that mention the desired Pokemon without naming the exact printed card. Exact `search_terms` always run first. Tier 2-only results are ranked after normal watchlist results and are capped separately so they cannot consume the entire Gemini allowance.
+
+```yaml
+sendico:
+  tier2_lot_search:
+    enabled: true
+    max_results_per_search: 30
+    max_analyses_per_run: 20
+    allow_query_only_candidates: true
+```
+
+With `allow_query_only_candidates: true`, a result returned by a Tier 2 query may reach Gemini even when the abbreviated search-result text does not repeat the Pokemon name. Gemini must still identify the exact watchlist card before the listing can qualify for an alert. Duplicate listings returned by both exact and Tier 2 searches are merged and treated as normal higher-priority watchlist results.
+
+For the initial Ampharos test, the scanner retains at most 30 results from each Tier 2 term and performs at most 20 Tier 2-only Gemini analyses in the full run. The analysis cap is applied after unchanged listings are skipped, allowing later candidates to rotate into subsequent scans. Adjust `max_analyses_per_run` after reviewing token usage and match quality.
 
 ### General Pokemon search
 

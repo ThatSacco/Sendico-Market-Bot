@@ -29,6 +29,7 @@ class WatchCard:
     accepted_sets: list[str] = field(default_factory=list)
     accepted_set_codes: list[str] = field(default_factory=list)
     search_terms: list[str] = field(default_factory=list)
+    lot_search_terms: list[str] = field(default_factory=list)
     pricecharting_url: str | None = None
 
     def __post_init__(self) -> None:
@@ -47,6 +48,7 @@ class WatchCard:
         self.accepted_sets = _clean_list(self.accepted_sets)
         self.accepted_set_codes = _clean_list(self.accepted_set_codes)
         self.search_terms = _clean_list(self.search_terms)
+        self.lot_search_terms = _clean_list(self.lot_search_terms)
         self.pricecharting_url = _clean_pricecharting_url(
             self.pricecharting_url,
             entry_id=self.id,

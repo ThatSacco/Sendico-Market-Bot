@@ -91,6 +91,22 @@ def watchlist_search_terms(targets: list[WatchCard]) -> list[str]:
     return list(dict.fromkeys(term.strip() for term in terms if term.strip()))
 
 
+def watchlist_lot_search_terms(targets: list[WatchCard]) -> list[str]:
+    """Return optional Tier 2 Pokemon-name-plus-lot search terms.
+
+    These terms are kept separate from the normal watchlist searches so the
+    scanner can cap broad lot candidates without limiting exact-card results.
+    """
+    return list(
+        dict.fromkeys(
+            term.strip()
+            for target in targets
+            for term in target.lot_search_terms
+            if term.strip()
+        )
+    )
+
+
 def watchlist_signature(targets: list[WatchCard]) -> str:
     """Hash active rules so a watchlist edit permits old listings to be rescanned."""
     serialized = json.dumps(

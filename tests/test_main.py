@@ -1,5 +1,23 @@
-from pokemon_deal_bot.main import _merge_listing
-from pokemon_deal_bot.models import SendicoListing
+from pokemon_deal_bot.main import (
+    _candidate_relevance_score,
+    _merge_listing,
+    _rank_candidate_pool,
+)
+from pokemon_deal_bot.models import SendicoListing, WatchCard
+
+
+def _target() -> WatchCard:
+    return WatchCard(
+        id="ampharos",
+        match_mode="exact_card",
+        english_name="Ampharos EX",
+        japanese_name="デンリュウEX",
+        set_name="Bandit Ring",
+        set_code="XY7",
+        card_number="027/081",
+        search_terms=["デンリュウEX 027/081"],
+        lot_search_terms=["デンリュウ まとめ"],
+    )
 
 
 def test_merge_listing_enriches_direct_placeholder():
@@ -28,19 +46,7 @@ def test_merge_listing_enriches_direct_placeholder():
 
 
 def test_candidate_relevance_prioritises_exact_watchlist_evidence():
-    from pokemon_deal_bot.main import _candidate_relevance_score
-    from pokemon_deal_bot.models import WatchCard
-
-    target = WatchCard(
-        id="ampharos",
-        match_mode="exact_card",
-        english_name="Ampharos EX",
-        japanese_name="デンリュウEX",
-        set_name="Bandit Ring",
-        set_code="XY7",
-        card_number="027/081",
-        search_terms=["デンリュウEX 027/081"],
-    )
+    target = _target()
     strong = SendicoListing(
         code="m1",
         url="https://example.test/m1",
@@ -53,25 +59,122 @@ def test_candidate_relevance_prioritises_exact_watchlist_evidence():
         title="Pikachu card sleeves",
         price_yen=1000,
     )
-
     assert _candidate_relevance_score(strong, [target]) >= 100
     assert _candidate_relevance_score(unrelated, [target]) == 0
 
 
-def test_candidate_relevance_keeps_generic_lot_as_low_priority():
-    from pokemon_deal_bot.main import _candidate_relevance_score
-    from pokemon_deal_bot.models import WatchCard
-
-    target = WatchCard(
-        id="ampharos",
-        match_mode="exact_card",
-        english_name="Ampharos EX",
-        card_number="027/081",
+def test_candidate_relevance_boosts_pokemon_name_plus_lot_marker():
+    target = _target()
+    name_only = SendicoListing(
+        code="m1",
+        url="https://example.test/m1",
+        title="デンリュウ ポケモンカード",
+        price_yen=1000,
     )
+    named_lot = SendicoListing(
+        code="m2",
+        url="https://example.test/m2",
+        title="デンリュウ ポケモンカード まとめ",
+        price_yen=1000,
+    )
+    assert _candidate_relevance_score(named_lot, [target]) > _candidate_relevance_score(
+        name_only,
+        [target],
+    )
+
+
+def test_candidate_relevance_keeps_generic_lot_as_low_priority():
     lot = SendicoListing(
         code="m3",
         url="https://example.test/m3",
         title="Japanese Pokemon collection lot",
         price_yen=1000,
     )
-    assert _candidate_relevance_score(lot, [target]) == 5
+    assert _candidate_relevance_score(lot, [_target()]) == 5
+
+
+def test_rank_candidate_pool_places_tier2_after_exact_results():
+    exact = SendicoListing(
+        code="exact",
+        url="https://example.test/exact",
+        title="デンリュウEX 027/081 XY7",
+        price_yen=1000,
+    )
+    named_lot = SendicoListing(
+        code="named-lot",
+        url="https://example.test/named-lot",
+        title="デンリュウ まとめ",
+        price_yen=2000,
+    )
+    query_only = SendicoListing(
+        code="query-only",
+        url="https://example.test/query-only",
+        title="Pokemon cards assorted sale",
+        price_yen=3000,
+    )
+    selected, filtered, tier2_selected = _rank_candidate_pool(
+        {
+            exact.code: exact,
+            named_lot.code: named_lot,
+            query_only.code: query_only,
+        },
+        {
+            exact.code: {"watchlist"},
+            named_lot.code: {"tier2_lot"},
+            query_only.code: {"tier2_lot"},
+        },
+        [_target()],
+        direct_codes=set(),
+        prefilter_enabled=True,
+        allow_tier2_query_only=True,
+    )
+
+    assert [listing.code for listing in selected] == [
+        "exact",
+        "named-lot",
+        "query-only",
+    ]
+    assert filtered == 0
+    assert tier2_selected == 2
+
+
+def test_rank_candidate_pool_can_reject_query_only_tier2_results():
+    query_only = SendicoListing(
+        code="query-only",
+        url="https://example.test/query-only",
+        title="Pikachu card sleeves",
+        price_yen=1000,
+    )
+    selected, filtered, tier2_selected = _rank_candidate_pool(
+        {query_only.code: query_only},
+        {query_only.code: {"tier2_lot"}},
+        [_target()],
+        direct_codes=set(),
+        prefilter_enabled=True,
+        allow_tier2_query_only=False,
+    )
+
+    assert selected == []
+    assert filtered == 1
+    assert tier2_selected == 0
+
+
+def test_listing_found_by_exact_and_tier2_is_not_tier2_only():
+    listing = SendicoListing(
+        code="duplicate",
+        url="https://example.test/duplicate",
+        title="デンリュウEX 027/081 まとめ",
+        price_yen=1000,
+    )
+    selected, filtered, tier2_selected = _rank_candidate_pool(
+        {listing.code: listing},
+        {listing.code: {"watchlist", "tier2_lot"}},
+        [_target()],
+        direct_codes=set(),
+        prefilter_enabled=True,
+        allow_tier2_query_only=True,
+    )
+
+    assert [item.code for item in selected] == ["duplicate"]
+    assert filtered == 0
+    assert tier2_selected == 0

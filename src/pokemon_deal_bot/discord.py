@@ -240,6 +240,9 @@ def build_scan_summary_embed(
     discovered: int,
     prefiltered_out: int,
     hydrated: int,
+    tier2_selected: int = 0,
+    tier2_analysed: int = 0,
+    tier2_held: int = 0,
     unchanged_skipped: int,
     seller_filtered: int,
     analysed: int,
@@ -272,6 +275,9 @@ def build_scan_summary_embed(
                 "name": "Listings",
                 "value": (
                     f"Found: **{discovered}**\n"
+                    f"Tier 2 candidates: **{tier2_selected}**\n"
+                    f"Tier 2 analysed: **{tier2_analysed}**\n"
+                    f"Tier 2 held after cap: **{tier2_held}**\n"
                     f"Filtered before Gemini: **{prefiltered_out}**\n"
                     f"Detail pages checked: **{hydrated}**"
                 ),
