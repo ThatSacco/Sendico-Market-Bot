@@ -5,62 +5,35 @@
       "candidate_labels": "",
       "confidence": 0.0,
       "conflicts": "",
-      "evidence": "Image 1 shows Ampharos EX. | Image 2 (label 01-1) shows Meowth instead of Ampharos EX.",
-      "listing_code": "m83786422679",
-      "listing_url": "https://sendico.com/shop/mercari/catalog/m83786422679",
+      "evidence": "Image 1 shows Ampharos EX #27 from Bandit Ring (XY series, modern EX card layout with full-bleed silver borders and lightning foil pattern). | Image 2 shows older vintage era cards (e.g., Delta Species, EX Ruby & Sapphire era cards with standard silver borders and different card layouts).",
+      "listing_code": "m10520548620",
+      "listing_url": "https://sendico.com/shop/mercari/catalog/m10520548620",
       "model": "gemini-3.5-flash-lite",
       "same_card": false,
       "stage": "screening",
-      "target_id": "ampharos_bandit_ring_27"
-    },
-    {
-      "batch": 1,
-      "candidate_labels": "01-1",
-      "confidence": 0.85,
-      "conflicts": "The image shows sealed product/boxes rather than a loose card, but the box clearly features the exact promo/card artwork and text corresponding to the target Ampharos EX.",
-      "evidence": "Image 2 shows three Pokémon EX starter/special boxes, and the middle box explicitly displays the Ampharos EX card and branding matching the Japanese Bandit Ring Ampharos EX.",
-      "listing_code": "m90885578246",
-      "listing_url": "https://sendico.com/shop/mercari/catalog/m90885578246",
-      "model": "gemini-3.5-flash-lite",
-      "same_card": true,
-      "stage": "screening",
-      "target_id": "ampharos_bandit_ring_27"
-    },
-    {
-      "batch": 1,
-      "candidate_labels": "01-1",
-      "confidence": 0.0,
-      "conflicts": "Candidate 01-1 shows Scarlet & Violet era 'ex' Starter Set product packaging (Fuecoco & Ampharos ex), which contains a completely different modern Ampharos ex card from SV era rather than the XY-era Ampharos EX #27 from Bandit Ring.",
-      "evidence": "",
-      "listing_code": "m90885578246",
-      "listing_url": "https://sendico.com/shop/mercari/catalog/m90885578246",
-      "model": "gemini-3.6-flash",
-      "same_card": false,
-      "stage": "detailed",
       "target_id": "ampharos_bandit_ring_27"
     }
   ],
   "stats": {
     "alerts_sent": 0,
-    "candidates": 45,
+    "candidates": 44,
     "confirmed_matches": 0,
-    "detailed": 1,
-    "found": 54,
+    "detailed": 0,
+    "found": 53,
     "held": 0,
-    "hydrated": 2,
-    "input_tokens": 6949,
+    "hydrated": 1,
+    "input_tokens": 2332,
     "models_used": {
-      "gemini-3.5-flash-lite": 2,
-      "gemini-3.6-flash": 1
+      "gemini-3.5-flash-lite": 1
     },
-    "output_tokens": 326,
-    "probable_matches": 1,
+    "output_tokens": 117,
+    "probable_matches": 0,
     "processing_errors": 0,
-    "requests_sent": 3,
-    "screened": 2,
+    "requests_sent": 1,
+    "screened": 1,
     "skipped_seen": 43,
     "skipped_seller": 0,
-    "thinking_tokens": 121,
-    "total_tokens": 7396
+    "thinking_tokens": 0,
+    "total_tokens": 2449
   }
 }
