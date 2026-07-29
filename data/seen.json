@@ -192,9 +192,9 @@
     },
     "m35957496299": {
       "alerts": {},
-      "fingerprint": "47181e886da0e36b5e110d77057cbefe0df1af3e6a4acaa03e1146d96a168c02",
+      "fingerprint": "eb624179f036df21c145723f59e550ffd049f5304d03aec778faace1d9f42a5c",
       "last_outcome": "ampharos_bandit_ring_27: screen negative 0.00",
-      "updated_at": "2026-07-29T05:15:10.993153+00:00"
+      "updated_at": "2026-07-29T11:31:40.093430+00:00"
     },
     "m36078175814": {
       "alerts": {},
@@ -381,9 +381,9 @@
     },
     "m61829212770": {
       "alerts": {},
-      "fingerprint": "c9512ed6b6eee8d69620e1d82625ca9c30a62675803f77cb5a1ace7d4beca27d",
+      "fingerprint": "2d6648da384ddf10eaf8a2833816b26e79549734b7a204d021ae59c037d3eec9",
       "last_outcome": "ampharos_bandit_ring_27: screen negative 0.00",
-      "updated_at": "2026-07-29T05:14:47.229280+00:00"
+      "updated_at": "2026-07-29T11:31:44.703687+00:00"
     },
     "m63839814214": {
       "alerts": {
@@ -617,6 +617,12 @@
       "last_outcome": "ampharos_bandit_ring_27: screen negative 0.00",
       "updated_at": "2026-07-29T05:14:14.225060+00:00"
     },
+    "m87432853913": {
+      "alerts": {},
+      "fingerprint": "d3b3bc318244c3cbc6ffcb69a43ebb603466cd689cf8da4e7bf4e7909079c73c",
+      "last_outcome": "ampharos_bandit_ring_27: screen negative 0.00",
+      "updated_at": "2026-07-29T11:31:35.306543+00:00"
+    },
     "m88726533365": {
       "alerts": {
         "victini_black_bolt_97:probable": "b8273cea825f0ce977eafa5ba242098eaf9d35347c86e52ac6bacc1890ab4995"
@@ -652,6 +658,12 @@
       "fingerprint": "a890508f7a9044afc9110d90de173d154f55cd732e0dcd6a21e489eb03fc52d1",
       "last_outcome": "ampharos_bandit_ring_27: confirmed 0.90",
       "updated_at": "2026-07-29T05:16:05.560825+00:00"
+    },
+    "m95946063560": {
+      "alerts": {},
+      "fingerprint": "d5d51c30549447bf04810589c985d5e7c0a69bb86d1e9797334790d734506c68",
+      "last_outcome": "ampharos_bandit_ring_27: not confirmed 0.00",
+      "updated_at": "2026-07-29T11:31:53.257653+00:00"
     },
     "m96893042977": {
       "alerts": {},
