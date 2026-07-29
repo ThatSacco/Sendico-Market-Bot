@@ -12,14 +12,17 @@ reference_image_matching:
   # PriceCharting reference, with search-associated targets checked first.
   compare_all_active_targets: true
 
-  # A listing at or above this confidence proceeds to detailed image matching.
+  # A positive same-card result at or above this confidence proceeds to
+  # detailed image matching. Negative decisions are treated as zero match
+  # confidence regardless of how confident Gemini is in the rejection.
   minimum_screening_confidence_for_detail: 0.20
 
-  # Send an early Discord message while detailed comparison is continuing.
+  # Internal screening threshold only. Potential matches are not sent.
   probable_alert_threshold: 0.55
 
   # Detailed Gemini comparison must return same_card=true and meet this value.
   confirmed_threshold: 0.85
 
-  alert_on_probable_match: true
+  # Discord receives verified listings only.
+  alert_on_probable_match: false
   alert_on_confirmed_match: true
