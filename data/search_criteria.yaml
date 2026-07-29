@@ -7,7 +7,7 @@ version: 1
 
 seller:
   # Set to 0 to remove the verified positive-rating threshold.
-  minimum_positive_ratings: 301
+  minimum_positive_ratings: 0
   # Keep analysing when Sendico does not expose a reliable seller rating.
   analyse_unverified_sellers: true
   # Allow an otherwise qualifying deal to be reported as provisional.
@@ -25,7 +25,7 @@ discovery:
 lot:
   # When true, hydrated listing text must contain a lot marker or explicit
   # multi-card count before Gemini is used.
-  require_strong_lot_evidence: true
+  require_strong_lot_evidence: false
   evidence_terms:
     - "まとめ売り"
     - "大量"
@@ -43,12 +43,12 @@ lot:
 screening:
   # Lower values pass more listings from Flash-Lite to detailed Gemini.
   # Suggested range: 0.20 (loose) to 0.60 (strict).
-  minimum_target_probability: 0.30
+  minimum_target_probability: 0.20
 
 detailed_analysis:
   # Lower values retain more identified cards and possible target matches.
-  minimum_card_confidence: 0.90
-  minimum_target_confidence: 0.80
+  minimum_card_confidence: 0.80
+  minimum_target_confidence: 0.50
 
 pricing:
   # PriceCharting identity-match confidence.
