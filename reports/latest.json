@@ -4,7 +4,7 @@
       "batch": 1,
       "candidate_labels": "",
       "confidence": 0.0,
-      "conflicts": "None of the cards shown in the contact sheets (O1-1, O1-2) match Ampharos EX #27 from Bandit Ring. The visible cards are a mix of different Pokémon (e.g., Cosmog, Tapu Koko, Cobalion, Latios, Reshiram, Manaphy, Genesect, etc.) none of which depict Ampharos EX.",
+      "conflicts": "The target card is Ampharos EX #27 from Bandit Ring (Japanese XY series), featuring Ampharos's head close-up with lightning bolts. | Checking both images in the contact sheet (O1-1 and O1-2), none of the cards display the specific Ampharos EX artwork or layout matching the reference.",
       "evidence": "",
       "listing_code": "m96893042977",
       "listing_url": "https://sendico.com/shop/mercari/catalog/m96893042977",
@@ -26,7 +26,7 @@
     "models_used": {
       "gemini-3.5-flash-lite": 1
     },
-    "output_tokens": 130,
+    "output_tokens": 119,
     "probable_matches": 0,
     "processing_errors": 0,
     "requests_sent": 1,
@@ -34,6 +34,6 @@
     "skipped_seen": 44,
     "skipped_seller": 0,
     "thinking_tokens": 0,
-    "total_tokens": 2422
+    "total_tokens": 2411
   }
 }
