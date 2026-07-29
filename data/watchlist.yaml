@@ -39,12 +39,28 @@ cards:
         mode: exact
         active: false
 
-      # Generic searches can return hundreds of unrelated results. Leave inactive
-      # unless a deliberately broad test is required.
-      - term: "ポケカ まとめ売り"
-        mode: generic_lot
-        active: false
+- id: victini_sv11b_097
+    active: true
+    match_mode: exact_card
+    english_name: "Victini"
+    japanese_name: "ビクティニ"
+    set_name: "Black Bolt"
+    set_code: "sv11b"
+    card_number: "097/086"
+    rarity: "RR"
+    language: "Japanese"
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97"
 
+    searches:
+      - term: "ビクティニ まとめ"
+        mode: focused_lot
+        active: true
+
+      # Enable this only when you also want known individual-card listings.
+      - term: "ビクティニ AR 097/086"
+        mode: exact
+        active: true
+    
   - id: tyranitar_neo_era
     active: false
     match_mode: pokemon_general
