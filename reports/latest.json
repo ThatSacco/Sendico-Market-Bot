@@ -1,19 +1,5 @@
 {
-  "matches": [
-    {
-      "batch": 1,
-      "candidate_labels": "",
-      "confidence": 0.0,
-      "conflicts": "",
-      "evidence": "Image 1 shows Ampharos EX #27 from Bandit Ring (XY series, modern EX card layout with full-bleed silver borders and lightning foil pattern). | Image 2 shows older vintage era cards (e.g., Delta Species, EX Ruby & Sapphire era cards with standard silver borders and different card layouts).",
-      "listing_code": "m10520548620",
-      "listing_url": "https://sendico.com/shop/mercari/catalog/m10520548620",
-      "model": "gemini-3.5-flash-lite",
-      "same_card": false,
-      "stage": "screening",
-      "target_id": "ampharos_bandit_ring_27"
-    }
-  ],
+  "matches": [],
   "stats": {
     "alerts_sent": 0,
     "candidates": 44,
@@ -21,19 +7,17 @@
     "detailed": 0,
     "found": 53,
     "held": 0,
-    "hydrated": 1,
-    "input_tokens": 2332,
-    "models_used": {
-      "gemini-3.5-flash-lite": 1
-    },
-    "output_tokens": 117,
+    "hydrated": 0,
+    "input_tokens": 0,
+    "models_used": {},
+    "output_tokens": 0,
     "probable_matches": 0,
     "processing_errors": 0,
-    "requests_sent": 1,
-    "screened": 1,
-    "skipped_seen": 43,
+    "requests_sent": 0,
+    "screened": 0,
+    "skipped_seen": 44,
     "skipped_seller": 0,
     "thinking_tokens": 0,
-    "total_tokens": 2449
+    "total_tokens": 0
   }
 }
