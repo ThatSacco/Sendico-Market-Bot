@@ -1,1 +1,23 @@
-{"stats": {}, "matches": []}
+{
+  "matches": [],
+  "stats": {
+    "alerts_sent": 0,
+    "candidates": 0,
+    "confirmed_matches": 0,
+    "detailed": 0,
+    "found": 0,
+    "held": 0,
+    "hydrated": 0,
+    "input_tokens": 0,
+    "models_used": {},
+    "output_tokens": 0,
+    "probable_matches": 0,
+    "processing_errors": 0,
+    "requests_sent": 0,
+    "screened": 0,
+    "skipped_seen": 0,
+    "skipped_seller": 0,
+    "thinking_tokens": 0,
+    "total_tokens": 0
+  }
+}
