@@ -1,17 +1,18 @@
-# WATCHLIST-ONLY SEARCH CONTROL
+# SENDICO MARKET BOT WATCHLIST
 #
 # This is the only file to edit when changing:
-#   - the card or Pokemon being searched;
-#   - the PriceCharting product reference;
-#   - the exact Sendico/Mercari search wording;
-#   - whether an individual search is active.
+# - which cards are active;
+# - card identity and set information;
+# - direct PriceCharting product references; and
+# - Sendico/Mercari search wording.
 #
 # Search modes:
-#   exact        - listing is expected to name the individual card;
-#   focused_lot  - set/era-specific multi-card lots (recommended);
-#   generic_lot  - broad Pokemon collection searches (high volume; use carefully).
+#   exact        - intended to find listings naming the exact card
+#   focused_lot  - set/era-specific multi-card lot searches
+#   generic_lot  - broad collection searches; use sparingly
 #
-# Safety rule: each active card must have 1-4 active searches.
+# Every active card must have between 1 and 4 active searches.
+
 cards:
   - id: ampharos_ex_xy7_027
     active: true
@@ -34,33 +35,43 @@ cards:
         mode: focused_lot
         active: true
 
-      # Enable this only when you also want known individual-card listings.
+      - term: "デンリュウEX まとめ売り"
+        mode: focused_lot
+        active: true
+
       - term: "デンリュウEX 027/081"
         mode: exact
         active: false
 
   - id: victini_sv11b_097
-      active: true
-      match_mode: exact_card
-      english_name: "Victini"
-      japanese_name: "ビクティニ"
-      set_name: "Black Bolt"
-      set_code: "sv11b"
-      card_number: "097/086"
-      rarity: "RR"
-      language: "Japanese"
-      pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97"
+    active: True
+    match_mode: exact_card
+    english_name: "Victini"
+    japanese_name: "ビクティニ"
+    set_name: "Black Bolt"
+    set_code: "sv11B"
+    card_number: "097/086"
+    rarity: "AR"
+    language: "Japanese"
+    pricecharting_url: "https://www.pricecharting.com/game/pokemon-japanese-black-bolt/victini-97"
 
-      searches:
-        - term: "ビクティニ まとめ"
-          mode: focused_lot
-          active: true
+    searches:
+      - term: "ブラックボルト まとめ売り"
+        mode: focused_lot
+        active: true
 
-        # Enable this only when you also want known individual-card listings.
-        - term: "ビクティニ AR 097/086"
-          mode: exact
-          active: true
-    
+      - term: "sv11B まとめ売り"
+        mode: focused_lot
+        active: true
+
+      - term: "ビクティニ まとめ売り"
+        mode: focused_lot
+        active: true
+
+      - term: "ビクティニ 097/086"
+        mode: exact
+        active: false
+
   - id: tyranitar_neo_era
     active: false
     match_mode: pokemon_general
@@ -82,10 +93,20 @@ cards:
       - "Awakening Legends"
       - "Neo Destiny"
       - "Darkness, and to Light..."
+
     searches:
-      - term: "バンギラス neo まとめ売り"
+      - term: "バンギラス 旧裏"
         mode: focused_lot
         active: true
-      - term: "旧裏 バンギラス まとめ売り"
+
+      - term: "バンギラス neo"
         mode: focused_lot
         active: true
+
+      - term: "わるいバンギラス"
+        mode: exact
+        active: false
+
+      - term: "ひかるバンギラス"
+        mode: exact
+        active: false
