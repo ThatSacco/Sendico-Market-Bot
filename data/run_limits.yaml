@@ -18,7 +18,7 @@ search:
   # Maximum retained results from each active watchlist search.
   results_per_term: 50
   # Maximum unique listings considered across the complete run.
-  total_listings_per_run: 50
+  total_listings_per_run: 150
   # Stop scrolling a Sendico result page after approximately this many raw links.
   raw_links_per_term: 60
   page_timeout_ms: 60000
