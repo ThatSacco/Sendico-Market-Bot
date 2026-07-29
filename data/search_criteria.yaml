@@ -1,59 +1,25 @@
-# CENTRAL SEARCH AND DEAL CRITERIA
-#
-# Edit this file to make filtering looser or stricter.
-# This file does NOT create marketplace searches. Search terms remain only in
-# data/watchlist.yaml.
+# CENTRAL MATCHING AND ALERT CRITERIA
 version: 1
 
 seller:
-  # Set to 0 to remove the verified positive-rating threshold.
+  # 0 disables the positive-rating threshold.
   minimum_positive_ratings: 0
-  # Keep analysing when Sendico does not expose a reliable seller rating.
   analyse_unverified_sellers: true
-  # Allow an otherwise qualifying deal to be reported as provisional.
-  alert_provisional_deals: true
 
-discovery:
-  # Local title/text relevance filter before Gemini.
-  prefilter_watchlist_relevance: true
-  # Run active searches with mode: exact from the watchlist.
-  run_exact_searches: true
-  # Recommended true for focused lot searches: sellers often do not name every
-  # card in a lot title. Setting false is stricter and uses fewer tokens.
-  allow_query_only_candidates: true
+reference_image_matching:
+  # Search phrases only discover listings; they do not decide card identity.
+  # When true, every discovered listing is checked against every active
+  # PriceCharting reference, with search-associated targets checked first.
+  compare_all_active_targets: true
 
-lot:
-  # When true, hydrated listing text must contain a lot marker or explicit
-  # multi-card count before Gemini is used.
-  require_strong_lot_evidence: false
-  evidence_terms:
-    - "まとめ売り"
-    - "大量"
-    - "引退品"
-    - "引退"
-    - "詰め合わせ"
-    - "セット販売"
-    - "セット"
-    - "lot"
-    - "bundle"
-    - "collection"
-    - "bulk"
-    - "assorted"
+  # A listing at or above this confidence proceeds to detailed image matching.
+  minimum_screening_confidence_for_detail: 0.20
 
-screening:
-  # Lower values pass more listings from Flash-Lite to detailed Gemini.
-  # Suggested range: 0.20 (loose) to 0.60 (strict).
-  minimum_target_probability: 0.20
+  # Send an early Discord message while detailed comparison is continuing.
+  probable_alert_threshold: 0.55
 
-detailed_analysis:
-  # Lower values retain more identified cards and possible target matches.
-  minimum_card_confidence: 0.80
-  minimum_target_confidence: 0.50
+  # Detailed Gemini comparison must return same_card=true and meet this value.
+  confirmed_threshold: 0.85
 
-pricing:
-  # PriceCharting identity-match confidence.
-  minimum_match_confidence: 0.90
-
-deal:
-  # 0 reports the price variance without requiring a minimum saving.
-  minimum_saving_percent: 0.0
+  alert_on_probable_match: true
+  alert_on_confirmed_match: true

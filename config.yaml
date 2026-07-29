@@ -1,62 +1,25 @@
 marketplace: mercari
 currency: AUD
-shipping_allowance_aud: 0.0
-
-# User-editable volume and token limits.
-run_limits_file: "data/run_limits.yaml"
-
-# User-editable filtering and qualification thresholds.
-search_criteria_file: "data/search_criteria.yaml"
-
-# Cards, PriceCharting references and Sendico search wording.
-watchlist_file: "data/watchlist.yaml"
-
-test_mode:
-  enabled: false
-  ignore_seen_state: false
-  skip_search_when_direct_urls: true
-  direct_listing_urls: []
-
+watchlist_file: data/watchlist.yaml
+run_limits_file: data/run_limits.yaml
+search_criteria_file: data/search_criteria.yaml
 sendico:
-  category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
-
-  tier2_lot_search:
-    enabled: true
-
-    # Fixed two-pass implementation choices. Thresholds are in
-    # data/search_criteria.yaml and capacities are in data/run_limits.yaml.
-    screening_enabled: true
-    screening_model: "gemini-3.5-flash-lite"
-    screening_fallback_models:
-      - "gemini-3.6-flash"
-
-  # Compatibility keys only. Search wording must remain in data/watchlist.yaml.
-  use_legacy_config_search_terms: false
-  search_terms: []
-
-vision:
-  enabled: true
-  provider: "gemini"
-  pipeline_state_version: "watchlist-two-pass-central-controls-v7"
+  category_url: https://sendico.com/shop/mercari/catalog/categories/1289
+gemini:
+  api_version: v1beta
+  api_revision: '2026-05-20'
+  thinking_level: low
+  screening_model: gemini-3.5-flash-lite
   models:
-    - "gemini-3.6-flash"
-    - "gemini-3.5-flash-lite"
-  model: "gemini-3.6-flash"
-  api_version: "v1beta"
-  api_revision: "2026-05-20"
-  thinking_level: "low"
-
+  - gemini-3.6-flash
+  - gemini-3.5-flash-lite
 pricing:
-  request_delay_seconds: 1.2
-  cache_hours: 12
+  reference_cache_hours: 24
   manual_usd_to_aud: 1.52
   manual_jpy_to_aud: 0.0102
-
 sendico_fee:
-  before_2026_08_01_jpy: 800
-  from_2026_08_01_jpy: 800
-
+  yen: 800
 discord:
-  username: "Pokemon Deal Scout"
   enabled: true
+  username: Pokemon Deal Scout
   send_completion_summary: true

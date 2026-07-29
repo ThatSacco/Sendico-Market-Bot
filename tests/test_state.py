@@ -1,95 +1,59 @@
-import json
-from pathlib import Path
-
 from pokemon_deal_bot.models import SendicoListing
 from pokemon_deal_bot.state import StateStore
 
 
-def _listing(price: int = 1000) -> SendicoListing:
-    return SendicoListing(
-        code="m-retry",
-        url="https://example.test/m-retry",
-        title="Victini listing",
-        price_yen=price,
-        seller_positive_ratings=None,
-        image_urls=["https://example.test/card.jpg"],
+def test_seen_state_changes_with_scan_signature(tmp_path):
+    store = StateStore(tmp_path / "seen.json")
+    listing = SendicoListing(
+        "m12345678",
+        "https://sendico.test/m12345678",
+        "Lot",
+        1000,
+        ["https://x/m12345678_1.jpg"],
     )
+    assert store.should_process(listing, "a")
+    store.mark_processed(listing, "a", "done")
+    assert not store.should_process(listing, "a")
+    assert store.should_process(listing, "b")
 
 
-def test_retryable_error_is_allowed_three_total_attempts(tmp_path: Path):
-    state = StateStore(tmp_path / "seen.json")
-    listing = _listing()
-
-    assert not state.unchanged(listing, max_attempts=3)
-
-    state.update(listing, False, "error: first failure")
-    assert state.attempt_count(listing) == 1
-    assert not state.unchanged(listing, max_attempts=3)
-
-    state.update(listing, False, "error: second failure")
-    assert state.attempt_count(listing) == 2
-    assert not state.unchanged(listing, max_attempts=3)
-
-    state.update(listing, False, "error: third failure")
-    assert state.attempt_count(listing) == 3
-    assert state.unchanged(listing, max_attempts=3)
-
-
-def test_changed_listing_resets_attempt_counter(tmp_path: Path):
-    state = StateStore(tmp_path / "seen.json")
-    original = _listing(price=1000)
-    changed = _listing(price=1200)
-
-    state.update(original, False, "error: first failure")
-    state.update(original, False, "error: second failure")
-    state.update(original, False, "error: third failure")
-    assert state.unchanged(original, max_attempts=3)
-
-    assert not state.unchanged(changed, max_attempts=3)
-    state.update(changed, False, "error: changed listing failure")
-    assert state.attempt_count(changed) == 1
-
-
-def test_successful_unchanged_listing_is_skipped_immediately(tmp_path: Path):
-    state = StateStore(tmp_path / "seen.json")
-    listing = _listing()
-
-    state.update(listing, True, "qualifies")
-
-    assert state.unchanged(listing, max_attempts=3)
-    assert state.was_alerted(listing)
-
-
-def test_legacy_failure_record_counts_as_first_attempt(tmp_path: Path):
-    path = tmp_path / "seen.json"
-    listing = _listing()
-    fingerprint = StateStore.fingerprint(listing)
-    path.write_text(
-        json.dumps(
-            {
-                listing.code: {
-                    "url": listing.url,
-                    "fingerprint": fingerprint,
-                    "last_outcome": "error: old failure",
-                }
-            }
-        ),
-        encoding="utf-8",
+def test_discovery_fingerprint_remains_stable_after_hydration(tmp_path):
+    store = StateStore(tmp_path / "seen.json")
+    listing = SendicoListing(
+        "m12345678",
+        "https://sendico.test/m12345678",
+        "Search title",
+        1000,
+        ["https://x/m12345678_1.jpg"],
     )
+    fingerprint = store.listing_fingerprint(listing, "signature")
+    listing.title = "Hydrated title"
+    listing.image_urls.append("https://x/m12345678_2.jpg")
+    store.mark_processed(
+        listing,
+        "signature",
+        "done",
+        fingerprint=fingerprint,
+    )
+    assert not store.should_process_fingerprint(listing.code, fingerprint)
 
-    state = StateStore(path)
-    assert state.attempt_count(listing) == 1
-    assert not state.unchanged(listing, max_attempts=3)
 
-    state.update(listing, False, "error: new failure")
-    assert state.attempt_count(listing) == 2
+def test_alert_stages_are_deduplicated_separately(tmp_path):
+    store = StateStore(tmp_path / "seen.json")
+    store.record_alert("m1", "victini", "probable", "p")
+    assert store.alert_sent("m1", "victini", "probable", "p")
+    assert not store.alert_sent("m1", "victini", "confirmed", "p")
 
 
-def test_watchlist_change_resets_listing_state(tmp_path: Path):
-    state = StateStore(tmp_path / "seen.json")
-    listing = _listing()
-
-    state.update(listing, True, "qualifies", scan_signature="watchlist-a")
-    assert state.unchanged(listing, scan_signature="watchlist-a")
-    assert not state.unchanged(listing, scan_signature="watchlist-b")
-    assert not state.was_alerted(listing, scan_signature="watchlist-b")
+def test_seen_state_is_pruned_to_prevent_repository_bloat(tmp_path):
+    store = StateStore(tmp_path / "seen.json", max_listings=100)
+    for index in range(110):
+        listing = SendicoListing(
+            f"m{index:08d}",
+            f"https://sendico.test/m{index:08d}",
+            f"Lot {index}",
+            1000,
+            [f"https://x/m{index:08d}_1.jpg"],
+        )
+        store.mark_processed(listing, "signature", "done")
+    assert len(store.data["listings"]) == 100

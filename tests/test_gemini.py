@@ -1,0 +1,90 @@
+import json
+
+import httpx
+import pytest
+
+from pokemon_deal_bot.gemini import GeminiBudgetReached, GeminiReferenceMatcher
+
+
+def _limits(max_tokens: int = 10000):
+    return {
+        "token_budget": {
+            "max_total_tokens_per_run": max_tokens,
+            "reserve_per_request": 5000,
+            "max_requests_per_run": 0,
+        },
+        "gemini_request": {
+            "request_timeout_seconds": 30,
+            "max_retries_per_model": 0,
+            "retry_base_seconds": 0,
+            "max_completion_tokens": 100,
+        },
+    }
+
+
+def test_token_budget_stops_before_request():
+    config = {"models": ["gemini-test"], "screening_model": "gemini-lite"}
+    matcher = GeminiReferenceMatcher("x", config, _limits())
+    matcher.total_tokens = 5000
+    with pytest.raises(GeminiBudgetReached):
+        matcher._budget_check()
+    matcher.close()
+
+
+def test_interactions_request_uses_two_inline_images_and_structured_output():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        result = {
+            "same_card": True,
+            "confidence": 0.91,
+            "candidate_labels": ["O1-1"],
+            "evidence": ["Same artwork"],
+            "conflicts": [],
+        }
+        return httpx.Response(
+            200,
+            json={
+                "usage": {
+                    "total_input_tokens": 100,
+                    "total_output_tokens": 20,
+                    "total_tokens": 125,
+                },
+                "steps": [
+                    {
+                        "type": "model_output",
+                        "content": [
+                            {"type": "text", "text": json.dumps(result)}
+                        ],
+                    }
+                ],
+            },
+        )
+
+    matcher = GeminiReferenceMatcher(
+        "x",
+        {
+            "models": ["gemini-3.6-flash"],
+            "screening_model": "gemini-3.5-flash-lite",
+        },
+        _limits(20000),
+        transport=httpx.MockTransport(handler),
+    )
+    match = matcher.compare(
+        target_id="victini",
+        reference_name="Victini #97",
+        reference_jpeg=b"reference",
+        candidate_jpeg=b"listing",
+        stage="screening",
+    )
+    matcher.close()
+
+    assert match.same_card is True
+    assert match.confidence == 0.91
+    assert [part["type"] for part in captured["input"]] == [
+        "text",
+        "image",
+        "image",
+    ]
+    assert captured["response_format"]["mime_type"] == "application/json"

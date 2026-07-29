@@ -1,66 +1,36 @@
-# CENTRAL RUN VOLUME AND TOKEN LIMITS
-#
-# Edit this file to control how much work one scan may perform.
-# Search wording belongs in data/watchlist.yaml.
-# Filtering strictness belongs in data/search_criteria.yaml.
+# CENTRAL CAPACITY AND TOKEN LIMITS
 version: 1
-
-retry:
-  max_attempts_per_listing: 3
-
-test_mode:
-  max_alerts_per_run: 1
-
 search:
-  results_per_term: 50
-  total_listings_per_run: 100
-  raw_links_per_term: 80
+  results_per_term: 80
+  total_listings_per_run: 200
+  raw_links_per_term: 120
   page_timeout_ms: 60000
-  max_scroll_rounds: 8
+  max_scroll_rounds: 10
   stable_rounds_before_stop: 2
   scroll_pause_ms: 1200
-
 screening:
-  max_listings_per_run: 100
-  focused_lot_limit: 100
-  generic_lot_limit: 10
-  max_overview_images: 4
+  max_listings_per_run: 200
   max_image_dimension_px: 1400
-  jpeg_quality: 78
-
+  jpeg_quality: 80
+  images_per_batch: 4
+  max_batches_per_listing: 3
 detailed_analysis:
-  max_listings_per_run: 60
-  max_overview_images: 10
+  max_listings_per_run: 100
   max_images_downloaded: 12
   max_card_crops_per_listing: 40
-  max_cards_to_price: 100
-
+  images_per_batch: 12
+  max_batches_per_listing: 4
+  max_image_dimension_px: 1600
+  jpeg_quality: 86
+  contact_sheet_columns: 4
 token_budget:
   max_total_tokens_per_run: 150000
   reserve_per_request: 5000
-  # 0 means request-count unlimited while the token ceiling remains active.
   max_requests_per_run: 0
-
 gemini_request:
-  max_model_attempts_per_request: 2
   max_retries_per_model: 2
   retry_base_seconds: 2.0
-  retry_max_seconds: 30.0
   request_timeout_seconds: 240
-  crop_batch_size: 4
-  request_spacing_seconds: 1.0
-  max_completion_tokens: 1600
-
-image_processing:
-  local_analysis_max_dimension_px: 2200
-  crop_max_dimension_px: 1400
-  crop_jpeg_quality: 86
-  crop_padding_percent: 0.025
-  minimum_card_area_ratio: 0.012
-  maximum_card_area_ratio: 0.98
-  minimum_rectangularity: 0.58
-  card_aspect_ratio_min: 0.52
-  card_aspect_ratio_max: 0.84
-  duplicate_phash_distance: 10
-  contact_sheet_max_dimension_px: 1100
-  contact_sheet_jpeg_quality: 82
+  max_completion_tokens: 1000
+state:
+  max_seen_listings: 5000
