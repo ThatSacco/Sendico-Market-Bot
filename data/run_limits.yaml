@@ -16,7 +16,7 @@ test_mode:
 
 search:
   # Maximum retained results from each active watchlist search.
-  results_per_term: 25
+  results_per_term: 50
   # Maximum unique listings considered across the complete run.
   total_listings_per_run: 50
   # Stop scrolling a Sendico result page after approximately this many raw links.
@@ -28,7 +28,7 @@ search:
 
 screening:
   # Cheap Gemini Flash-Lite screening. Set count caps to 0 for unlimited.
-  max_listings_per_run: 100
+  max_listings_per_run: 150
   focused_lot_limit: 100
   generic_lot_limit: 10
   confidence_threshold: 0.45
@@ -39,7 +39,7 @@ screening:
 detailed_analysis:
   # Detailed Gemini 3.6 analyses. This one value controls both the Tier 2 and
   # global detailed-listing caps, so they can no longer become inconsistent.
-  max_listings_per_run: 30
+  max_listings_per_run: 60
   max_overview_images: 10
   max_images_downloaded: 12
   max_card_crops_per_listing: 40
@@ -50,10 +50,10 @@ detailed_analysis:
 token_budget:
   # Primary safeguard. With the current settings, typical active runs should
   # finish around 100,000-125,000 tokens and always remain below this ceiling.
-  max_total_tokens_per_run: 125000
+  max_total_tokens_per_run: 150000
   reserve_per_request: 5000
   # Set to 0 for unlimited requests while retaining the token ceiling.
-  max_requests_per_run: 120
+  max_requests_per_run: 0
 
 gemini_request:
   max_model_attempts_per_request: 2
