@@ -1,0 +1,59 @@
+# CENTRAL SEARCH AND DEAL CRITERIA
+#
+# Edit this file to make filtering looser or stricter.
+# This file does NOT create marketplace searches. Search terms remain only in
+# data/watchlist.yaml.
+version: 1
+
+seller:
+  # Set to 0 to remove the verified positive-rating threshold.
+  minimum_positive_ratings: 301
+  # Keep analysing when Sendico does not expose a reliable seller rating.
+  analyse_unverified_sellers: true
+  # Allow an otherwise qualifying deal to be reported as provisional.
+  alert_provisional_deals: true
+
+discovery:
+  # Local title/text relevance filter before Gemini.
+  prefilter_watchlist_relevance: true
+  # Run active searches with mode: exact from the watchlist.
+  run_exact_searches: true
+  # Recommended true for focused lot searches: sellers often do not name every
+  # card in a lot title. Setting false is stricter and uses fewer tokens.
+  allow_query_only_candidates: true
+
+lot:
+  # When true, hydrated listing text must contain a lot marker or explicit
+  # multi-card count before Gemini is used.
+  require_strong_lot_evidence: true
+  evidence_terms:
+    - "まとめ売り"
+    - "大量"
+    - "引退品"
+    - "引退"
+    - "詰め合わせ"
+    - "セット販売"
+    - "セット"
+    - "lot"
+    - "bundle"
+    - "collection"
+    - "bulk"
+    - "assorted"
+
+screening:
+  # Lower values pass more listings from Flash-Lite to detailed Gemini.
+  # Suggested range: 0.20 (loose) to 0.60 (strict).
+  minimum_target_probability: 0.30
+
+detailed_analysis:
+  # Lower values retain more identified cards and possible target matches.
+  minimum_card_confidence: 0.90
+  minimum_target_confidence: 0.80
+
+pricing:
+  # PriceCharting identity-match confidence.
+  minimum_match_confidence: 0.90
+
+deal:
+  # 0 reports the price variance without requiring a minimum saving.
+  minimum_saving_percent: 0.0

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from pokemon_deal_bot.config import load_config, load_run_limits
+from pokemon_deal_bot.config import load_config, load_run_limits, load_search_criteria
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,17 +44,19 @@ def test_price_override_file_is_valid_csv() -> None:
 def test_run_limits_are_central_and_internally_consistent() -> None:
     base = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     assert base["run_limits_file"] == "data/run_limits.yaml"
+    assert base["search_criteria_file"] == "data/search_criteria.yaml"
     limits = load_run_limits(ROOT / base["run_limits_file"])
+    criteria = load_search_criteria(ROOT / base["search_criteria_file"])
     config = load_config(ROOT / "config.yaml").raw
 
     sendico = config["sendico"]
     tier2 = sendico["tier2_lot_search"]
     vision = config["vision"]
 
-    assert sendico["prefilter_watchlist_relevance"] is True
+    assert sendico["prefilter_watchlist_relevance"] == criteria["discovery"]["prefilter_watchlist_relevance"]
     assert sendico["use_legacy_config_search_terms"] is False
     assert sendico["search_terms"] == []
-    assert tier2["allow_query_only_candidates"] is False
+    assert tier2["allow_query_only_candidates"] == criteria["discovery"]["allow_query_only_candidates"]
     assert tier2["screening_enabled"] is True
     assert tier2["screening_model"] == "gemini-3.5-flash-lite"
     assert vision["provider"] == "gemini"

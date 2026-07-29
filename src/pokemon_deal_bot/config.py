@@ -25,7 +25,6 @@ _LIMIT_MAPPINGS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("search", "max_scroll_rounds"), ("sendico", "maximum_scroll_rounds")),
     (("search", "stable_rounds_before_stop"), ("sendico", "stable_scroll_rounds_before_stop")),
     (("search", "scroll_pause_ms"), ("sendico", "scroll_pause_ms")),
-    (("screening", "confidence_threshold"), ("sendico", "tier2_lot_search", "screening_confidence_threshold")),
     (("screening", "max_listings_per_run"), ("sendico", "tier2_lot_search", "max_screenings_per_run")),
     (("screening", "focused_lot_limit"), ("sendico", "tier2_lot_search", "era_set_screening_limit")),
     (("screening", "generic_lot_limit"), ("sendico", "tier2_lot_search", "generic_screening_limit")),
@@ -38,8 +37,6 @@ _LIMIT_MAPPINGS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("detailed_analysis", "max_images_downloaded"), ("vision", "max_images_per_listing")),
     (("detailed_analysis", "max_card_crops_per_listing"), ("vision", "max_local_crops_per_listing")),
     (("detailed_analysis", "max_cards_to_price"), ("vision", "maximum_cards_to_price")),
-    (("detailed_analysis", "minimum_card_confidence"), ("vision", "minimum_card_confidence")),
-    (("detailed_analysis", "minimum_target_confidence"), ("vision", "minimum_target_confidence")),
     (("token_budget", "max_total_tokens_per_run"), ("vision", "max_total_tokens_per_run")),
     (("token_budget", "reserve_per_request"), ("vision", "token_budget_reserve_per_request")),
     (("token_budget", "max_requests_per_run"), ("vision", "max_vision_requests_per_run")),
@@ -65,6 +62,26 @@ _LIMIT_MAPPINGS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("image_processing", "contact_sheet_jpeg_quality"), ("vision", "contact_sheet_jpeg_quality")),
 )
 
+# data/search_criteria.yaml controls filtering and qualification. Keeping this
+# separate from run_limits.yaml means volume and quality can be tuned independently.
+_CRITERIA_MAPPINGS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("seller", "minimum_positive_ratings"), ("minimum_seller_positive_ratings",)),
+    (("seller", "analyse_unverified_sellers"), ("seller_verification", "analyse_unverified_sellers")),
+    (("seller", "alert_provisional_deals"), ("seller_verification", "alert_provisional_deals")),
+    (("discovery", "prefilter_watchlist_relevance"), ("sendico", "prefilter_watchlist_relevance")),
+    (("discovery", "run_exact_searches"), ("sendico", "tier2_lot_search", "run_standard_watchlist_searches")),
+    (("discovery", "allow_query_only_candidates"), ("sendico", "tier2_lot_search", "allow_query_only_candidates")),
+    (("lot", "require_strong_lot_evidence"), ("sendico", "tier2_lot_search", "require_strong_lot_evidence")),
+    (("lot", "evidence_terms"), ("sendico", "tier2_lot_search", "lot_evidence_terms")),
+    (("screening", "minimum_target_probability"), ("sendico", "tier2_lot_search", "screening_confidence_threshold")),
+    (("detailed_analysis", "minimum_card_confidence"), ("vision", "minimum_card_confidence")),
+    (("detailed_analysis", "minimum_target_confidence"), ("vision", "minimum_target_confidence")),
+    (("pricing", "minimum_match_confidence"), ("pricing", "minimum_match_confidence")),
+    (("deal", "minimum_saving_percent"), ("minimum_saving_percent",)),
+)
+
+_ACTIVE_SEARCH_CRITERIA_SIGNATURE = ""
+
 
 @dataclass(slots=True)
 class AppConfig:
@@ -72,6 +89,8 @@ class AppConfig:
     root: Path
     run_limits: dict[str, Any] = field(default_factory=dict)
     run_limits_path: Path | None = None
+    search_criteria: dict[str, Any] = field(default_factory=dict)
+    search_criteria_path: Path | None = None
 
     @property
     def minimum_seller_positive_ratings(self) -> int:
@@ -207,12 +226,6 @@ def validate_run_limits(limits: dict[str, Any]) -> None:
     screening_total = _as_int(limits, ("screening", "max_listings_per_run"))
     focused_limit = _as_int(limits, ("screening", "focused_lot_limit"))
     generic_limit = _as_int(limits, ("screening", "generic_lot_limit"))
-    _as_float(
-        limits,
-        ("screening", "confidence_threshold"),
-        minimum=0.0,
-        maximum=1.0,
-    )
     _as_int(limits, ("screening", "max_overview_images"), minimum=1)
     _as_int(limits, ("screening", "max_image_dimension_px"), minimum=100)
     screening_quality = _as_int(
@@ -237,18 +250,6 @@ def validate_run_limits(limits: dict[str, Any]) -> None:
         limits, ("detailed_analysis", "max_card_crops_per_listing"), minimum=1
     )
     _as_int(limits, ("detailed_analysis", "max_cards_to_price"), minimum=1)
-    _as_float(
-        limits,
-        ("detailed_analysis", "minimum_card_confidence"),
-        minimum=0.0,
-        maximum=1.0,
-    )
-    _as_float(
-        limits,
-        ("detailed_analysis", "minimum_target_confidence"),
-        minimum=0.0,
-        maximum=1.0,
-    )
     if detailed_total > 0 and detailed_total > total_listings:
         raise ValueError(
             "detailed_analysis.max_listings_per_run cannot exceed "
@@ -314,6 +315,168 @@ def validate_run_limits(limits: dict[str, Any]) -> None:
         _as_float(limits, ("image_processing", key), minimum=0.0)
 
 
+
+def _criteria_value(criteria: dict[str, Any], path: tuple[str, ...]) -> Any:
+    current: Any = criteria
+    traversed: list[str] = []
+    for part in path:
+        traversed.append(part)
+        if not isinstance(current, dict) or part not in current:
+            raise ValueError(
+                "data/search_criteria.yaml is missing required setting: "
+                + ".".join(traversed)
+            )
+        current = current[part]
+    return current
+
+
+def _criteria_bool(criteria: dict[str, Any], path: tuple[str, ...]) -> bool:
+    value = _criteria_value(criteria, path)
+    if not isinstance(value, bool):
+        raise ValueError(f"{'.'.join(path)} must be true or false")
+    return value
+
+
+def _criteria_int(
+    criteria: dict[str, Any],
+    path: tuple[str, ...],
+    *,
+    minimum: int = 0,
+) -> int:
+    value = _criteria_value(criteria, path)
+    if isinstance(value, bool):
+        raise ValueError(f"{'.'.join(path)} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{'.'.join(path)} must be an integer") from exc
+    if parsed < minimum:
+        raise ValueError(f"{'.'.join(path)} must be at least {minimum}")
+    return parsed
+
+
+def _criteria_float(
+    criteria: dict[str, Any],
+    path: tuple[str, ...],
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    value = _criteria_value(criteria, path)
+    if isinstance(value, bool):
+        raise ValueError(f"{'.'.join(path)} must be numeric")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{'.'.join(path)} must be numeric") from exc
+    if minimum is not None and parsed < minimum:
+        raise ValueError(f"{'.'.join(path)} must be at least {minimum}")
+    if maximum is not None and parsed > maximum:
+        raise ValueError(f"{'.'.join(path)} must be at most {maximum}")
+    return parsed
+
+
+def validate_search_criteria(criteria: dict[str, Any]) -> None:
+    """Validate user-adjustable filtering without enforcing one fixed profile."""
+
+    if int(criteria.get("version", 0)) != 1:
+        raise ValueError("data/search_criteria.yaml version must be 1")
+
+    _criteria_int(criteria, ("seller", "minimum_positive_ratings"), minimum=0)
+    _criteria_bool(criteria, ("seller", "analyse_unverified_sellers"))
+    _criteria_bool(criteria, ("seller", "alert_provisional_deals"))
+
+    _criteria_bool(criteria, ("discovery", "prefilter_watchlist_relevance"))
+    _criteria_bool(criteria, ("discovery", "run_exact_searches"))
+    _criteria_bool(criteria, ("discovery", "allow_query_only_candidates"))
+
+    require_lot = _criteria_bool(
+        criteria, ("lot", "require_strong_lot_evidence")
+    )
+    evidence_terms = _criteria_value(criteria, ("lot", "evidence_terms"))
+    if not isinstance(evidence_terms, list):
+        raise ValueError("lot.evidence_terms must be a YAML list")
+    cleaned_terms = [str(value).strip() for value in evidence_terms if str(value).strip()]
+    if require_lot and not cleaned_terms:
+        raise ValueError(
+            "lot.evidence_terms must contain at least one term when "
+            "lot.require_strong_lot_evidence is true"
+        )
+    if len(cleaned_terms) != len(set(term.casefold() for term in cleaned_terms)):
+        raise ValueError("lot.evidence_terms contains duplicates")
+
+    _criteria_float(
+        criteria,
+        ("screening", "minimum_target_probability"),
+        minimum=0.0,
+        maximum=1.0,
+    )
+    _criteria_float(
+        criteria,
+        ("detailed_analysis", "minimum_card_confidence"),
+        minimum=0.0,
+        maximum=1.0,
+    )
+    _criteria_float(
+        criteria,
+        ("detailed_analysis", "minimum_target_confidence"),
+        minimum=0.0,
+        maximum=1.0,
+    )
+    _criteria_float(
+        criteria,
+        ("pricing", "minimum_match_confidence"),
+        minimum=0.0,
+        maximum=1.0,
+    )
+    _criteria_float(
+        criteria,
+        ("deal", "minimum_saving_percent"),
+        minimum=0.0,
+    )
+
+
+def load_search_criteria(path: str | Path) -> dict[str, Any]:
+    criteria_path = Path(path).resolve()
+    criteria = _read_yaml_mapping(
+        criteria_path, label="data/search_criteria.yaml"
+    )
+    validate_search_criteria(criteria)
+    return criteria
+
+
+def search_criteria_signature(criteria: dict[str, Any]) -> str:
+    serialized = json.dumps(
+        criteria,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _assert_no_duplicate_criteria(base: dict[str, Any]) -> None:
+    duplicates = sorted(
+        ".".join(destination)
+        for _, destination in _CRITERIA_MAPPINGS
+        if _path_exists(base, destination)
+    )
+    if duplicates:
+        raise ValueError(
+            "Search criteria must be edited only in data/search_criteria.yaml. "
+            "Remove these duplicate settings from config.yaml: "
+            + ", ".join(duplicates)
+        )
+
+
+def _apply_search_criteria(
+    base: dict[str, Any],
+    criteria: dict[str, Any],
+) -> None:
+    for source_path, destination in _CRITERIA_MAPPINGS:
+        _set_path(base, destination, _criteria_value(criteria, source_path))
+
+
 def load_run_limits(path: str | Path) -> dict[str, Any]:
     limits_path = Path(path).resolve()
     limits = _read_yaml_mapping(limits_path, label="data/run_limits.yaml")
@@ -341,27 +504,47 @@ def _apply_run_limits(base: dict[str, Any], limits: dict[str, Any]) -> None:
 
 
 def load_config(path: str | Path = "config.yaml") -> AppConfig:
+    global _ACTIVE_SEARCH_CRITERIA_SIGNATURE
+
     config_path = Path(path).resolve()
     raw = _read_yaml_mapping(config_path, label="config.yaml")
-    limits_reference = str(raw.get("run_limits_file") or "").strip()
-    if not limits_reference:
-        # Backwards-compatible support for old tests and checkouts. The repository
-        # config always sets run_limits_file and therefore uses the central file.
-        return AppConfig(raw=raw, root=config_path.parent)
 
-    _assert_no_duplicate_limits(raw)
-    limits_path = (config_path.parent / limits_reference).resolve()
-    if not limits_path.is_file():
-        raise FileNotFoundError(
-            f"Configured run limits file does not exist: {limits_path}"
-        )
-    limits = load_run_limits(limits_path)
-    _apply_run_limits(raw, limits)
+    limits: dict[str, Any] = {}
+    limits_path: Path | None = None
+    limits_reference = str(raw.get("run_limits_file") or "").strip()
+    if limits_reference:
+        _assert_no_duplicate_limits(raw)
+        limits_path = (config_path.parent / limits_reference).resolve()
+        if not limits_path.is_file():
+            raise FileNotFoundError(
+                f"Configured run limits file does not exist: {limits_path}"
+            )
+        limits = load_run_limits(limits_path)
+        _apply_run_limits(raw, limits)
+
+    criteria: dict[str, Any] = {}
+    criteria_path: Path | None = None
+    criteria_reference = str(raw.get("search_criteria_file") or "").strip()
+    if criteria_reference:
+        _assert_no_duplicate_criteria(raw)
+        criteria_path = (config_path.parent / criteria_reference).resolve()
+        if not criteria_path.is_file():
+            raise FileNotFoundError(
+                f"Configured search criteria file does not exist: {criteria_path}"
+            )
+        criteria = load_search_criteria(criteria_path)
+        _apply_search_criteria(raw, criteria)
+        _ACTIVE_SEARCH_CRITERIA_SIGNATURE = search_criteria_signature(criteria)
+    else:
+        _ACTIVE_SEARCH_CRITERIA_SIGNATURE = ""
+
     return AppConfig(
         raw=raw,
         root=config_path.parent,
         run_limits=limits,
         run_limits_path=limits_path,
+        search_criteria=criteria,
+        search_criteria_path=criteria_path,
     )
 
 
@@ -469,10 +652,17 @@ def watchlist_lot_search_terms(targets: list[WatchCard]) -> list[str]:
 
 
 def watchlist_signature(targets: list[WatchCard]) -> str:
-    """Hash all active rules and searches so edits permit a fresh rescan."""
+    """Hash active targets, searches and criteria so edits permit a fresh rescan."""
 
+    payload = {
+        "targets": [
+            asdict(target)
+            for target in sorted(targets, key=lambda item: item.id)
+        ],
+        "search_criteria_signature": _ACTIVE_SEARCH_CRITERIA_SIGNATURE,
+    }
     serialized = json.dumps(
-        [asdict(target) for target in sorted(targets, key=lambda item: item.id)],
+        payload,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

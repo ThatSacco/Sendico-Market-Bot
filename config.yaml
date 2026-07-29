@@ -1,13 +1,14 @@
 marketplace: mercari
 currency: AUD
-minimum_seller_positive_ratings: 301
 shipping_allowance_aud: 0.0
 
-# All user-adjustable run caps and budgets live in this one file.
+# User-editable volume and token limits.
 run_limits_file: "data/run_limits.yaml"
 
-# Search targets, PriceCharting references and Sendico search terms live only in
-# data/watchlist.yaml.
+# User-editable filtering and qualification thresholds.
+search_criteria_file: "data/search_criteria.yaml"
+
+# Cards, PriceCharting references and Sendico search wording.
 watchlist_file: "data/watchlist.yaml"
 
 test_mode:
@@ -16,48 +17,27 @@ test_mode:
   skip_search_when_direct_urls: true
   direct_listing_urls: []
 
-seller_verification:
-  analyse_unverified_sellers: true
-  alert_provisional_deals: true
-
 sendico:
   category_url: "https://sendico.com/shop/mercari/catalog/categories/1289"
-  prefilter_watchlist_relevance: true
 
   tier2_lot_search:
     enabled: true
-    run_standard_watchlist_searches: true
-    allow_query_only_candidates: false
 
-    # Cheap first pass. Only probable target listings proceed to detailed
-    # Gemini identification and lot valuation.
+    # Fixed two-pass implementation choices. Thresholds are in
+    # data/search_criteria.yaml and capacities are in data/run_limits.yaml.
     screening_enabled: true
     screening_model: "gemini-3.5-flash-lite"
     screening_fallback_models:
       - "gemini-3.6-flash"
 
-    require_strong_lot_evidence: true
-    lot_evidence_terms:
-      - "まとめ売り"
-      - "大量"
-      - "引退品"
-      - "引退"
-      - "詰め合わせ"
-      - "セット販売"
-      - "lot"
-      - "bundle"
-      - "collection"
-      - "bulk"
-      - "assorted"
-
-  # Compatibility keys only. Actual terms must remain in data/watchlist.yaml.
+  # Compatibility keys only. Search wording must remain in data/watchlist.yaml.
   use_legacy_config_search_terms: false
   search_terms: []
 
 vision:
   enabled: true
   provider: "gemini"
-  pipeline_state_version: "watchlist-two-pass-central-limits-v6"
+  pipeline_state_version: "watchlist-two-pass-central-controls-v7"
   models:
     - "gemini-3.6-flash"
     - "gemini-3.5-flash-lite"
@@ -71,7 +51,6 @@ pricing:
   cache_hours: 12
   manual_usd_to_aud: 1.52
   manual_jpy_to_aud: 0.0102
-  minimum_match_confidence: 0.95
 
 sendico_fee:
   before_2026_08_01_jpy: 800

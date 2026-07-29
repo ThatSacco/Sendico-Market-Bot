@@ -7,8 +7,10 @@ from pokemon_deal_bot.config import (
     AppConfig,
     load_config,
     load_run_limits,
+    load_search_criteria,
     load_watchlist,
     validate_run_limits,
+    validate_search_criteria,
     validate_watchlist_for_run,
     watchlist_era_lot_search_terms,
     watchlist_generic_lot_search_terms,
@@ -186,6 +188,7 @@ def test_repository_uses_central_run_limits_file():
     base = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
     assert base["run_limits_file"] == "data/run_limits.yaml"
     assert base["watchlist_file"] == "data/watchlist.yaml"
+    assert base["search_criteria_file"] == "data/search_criteria.yaml"
 
     # Tunable caps must not be duplicated in config.yaml.
     assert "max_results_per_search" not in base["sendico"]
@@ -194,8 +197,16 @@ def test_repository_uses_central_run_limits_file():
     assert "max_screenings_per_run" not in base["sendico"]["tier2_lot_search"]
     assert "max_detailed_analyses_per_run" not in base["sendico"]["tier2_lot_search"]
     assert "max_total_tokens_per_run" not in base["vision"]
+    assert "minimum_seller_positive_ratings" not in base
+    assert "seller_verification" not in base
+    assert "prefilter_watchlist_relevance" not in base["sendico"]
+    assert "allow_query_only_candidates" not in base["sendico"]["tier2_lot_search"]
+    assert "screening_confidence_threshold" not in base["sendico"]["tier2_lot_search"]
+    assert "minimum_match_confidence" not in base["pricing"]
 
     limits = load_run_limits(root / "data/run_limits.yaml")
+    criteria = load_search_criteria(root / "data/search_criteria.yaml")
+    validate_search_criteria(criteria)
     validate_run_limits(limits)
     effective = load_config(root / "config.yaml")
     sendico = effective.raw["sendico"]
@@ -209,6 +220,11 @@ def test_repository_uses_central_run_limits_file():
     assert tier2["max_detailed_analyses_per_run"] == limits["detailed_analysis"]["max_listings_per_run"]
     assert vision["max_listing_analyses_per_run"] == limits["detailed_analysis"]["max_listings_per_run"]
     assert vision["max_total_tokens_per_run"] == limits["token_budget"]["max_total_tokens_per_run"]
+    assert sendico["prefilter_watchlist_relevance"] == criteria["discovery"]["prefilter_watchlist_relevance"]
+    assert tier2["allow_query_only_candidates"] == criteria["discovery"]["allow_query_only_candidates"]
+    assert tier2["screening_confidence_threshold"] == criteria["screening"]["minimum_target_probability"]
+    assert vision["minimum_target_confidence"] == criteria["detailed_analysis"]["minimum_target_confidence"]
+    assert effective.raw["minimum_seller_positive_ratings"] == criteria["seller"]["minimum_positive_ratings"]
 
 
 def test_changing_central_limit_updates_all_legacy_runtime_paths(tmp_path: Path):
@@ -242,3 +258,32 @@ def test_central_limits_validation_rejects_inconsistent_values():
     limits["search"]["results_per_term"] = 25
     with pytest.raises(ValueError, match="raw_links_per_term"):
         validate_run_limits(limits)
+
+
+def test_changing_central_criteria_updates_runtime_without_test_edits(tmp_path: Path):
+    root = Path(__file__).resolve().parents[1]
+    base = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    limits = yaml.safe_load((root / "data/run_limits.yaml").read_text(encoding="utf-8"))
+    criteria = yaml.safe_load((root / "data/search_criteria.yaml").read_text(encoding="utf-8"))
+    criteria["discovery"]["allow_query_only_candidates"] = False
+    criteria["screening"]["minimum_target_probability"] = 0.55
+    criteria["detailed_analysis"]["minimum_target_confidence"] = 0.72
+
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(
+        yaml.safe_dump(base, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    (tmp_path / "data/run_limits.yaml").write_text(
+        yaml.safe_dump(limits, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    (tmp_path / "data/search_criteria.yaml").write_text(
+        yaml.safe_dump(criteria, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    effective = load_config(tmp_path / "config.yaml").raw
+    assert effective["sendico"]["tier2_lot_search"]["allow_query_only_candidates"] is False
+    assert effective["sendico"]["tier2_lot_search"]["screening_confidence_threshold"] == 0.55
+    assert effective["vision"]["minimum_target_confidence"] == 0.72
