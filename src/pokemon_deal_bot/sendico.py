@@ -3,9 +3,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from urllib.parse import unquote, urljoin, urlparse
+from typing import Any
+from urllib.parse import quote_plus, unquote, urljoin, urlparse
 
-from playwright.async_api import Browser, Page, TimeoutError as PlaywrightTimeoutError, async_playwright
+from playwright.async_api import (
+    Browser,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+    async_playwright,
+)
 
 from .models import SendicoListing
 
@@ -15,8 +21,16 @@ PRICE_PATTERNS = [
     re.compile(r"([0-9][0-9,]*)\s*(?:JPY|円)", re.I),
 ]
 SELLER_PATTERNS = [
-    re.compile(r"(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)\D{0,30}([0-9][0-9,]*)", re.I),
-    re.compile(r"([0-9][0-9,]*)\s*(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)", re.I),
+    re.compile(
+        r"(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)"
+        r"\D{0,30}([0-9][0-9,]*)",
+        re.I,
+    ),
+    re.compile(
+        r"([0-9][0-9,]*)\s*"
+        r"(?:positive(?:\s+ratings?)?|thumbs?\s*up|good\s+ratings?)",
+        re.I,
+    ),
     re.compile(r"(?:良い|高評価)\D{0,20}([0-9][0-9,]*)"),
 ]
 _MERCARI_ID = re.compile(r"m\d{8,}", re.I)
@@ -32,7 +46,11 @@ def parse_yen(text: str) -> int | None:
 
 
 def parse_seller_positive_ratings(text: str) -> int | None:
-    values = [int(match.group(1).replace(",", "")) for pattern in SELLER_PATTERNS for match in pattern.finditer(text or "")]
+    values = [
+        int(match.group(1).replace(",", ""))
+        for pattern in SELLER_PATTERNS
+        for match in pattern.finditer(text or "")
+    ]
     return max(values) if values else None
 
 
@@ -45,7 +63,41 @@ def is_listing_image_url(url: str, code: str) -> bool:
     if not candidate or not code or not _IMAGE_EXT.search(candidate):
         return False
     found = {item.lower() for item in _MERCARI_ID.findall(candidate)}
-    return code.lower() in candidate.lower() and (not found or found == {code.lower()})
+    return code.lower() in candidate.lower() and (
+        not found or found == {code.lower()}
+    )
+
+
+def listing_from_search_item(item: dict[str, Any]) -> SendicoListing | None:
+    """Convert one Sendico result-card payload into a listing.
+
+    Search result cards do not consistently expose their price in the anchor or
+    surrounding text. A missing search-page price must therefore not exclude an
+    otherwise valid Mercari listing. Hydration will read the detail page and
+    populate the price later.
+    """
+
+    url = str(item.get("href") or "").strip()
+    if not url or "/categories/" in url:
+        return None
+
+    code = listing_code(url)
+    if not _MERCARI_ID.fullmatch(code):
+        return None
+
+    text = str(item.get("text") or "").strip()
+    title = str(item.get("title") or "").strip()
+    if not title:
+        title = next((line.strip() for line in text.splitlines() if line.strip()), code)
+
+    return SendicoListing(
+        code=code,
+        url=url,
+        title=title,
+        price_yen=parse_yen(text) or 0,
+        image_urls=[str(item["image"])] if item.get("image") else [],
+        raw_text=text,
+    )
 
 
 class SendicoScanner:
@@ -72,7 +124,10 @@ class SendicoScanner:
         page = await self.browser.new_page(
             viewport={"width": 1440, "height": 1200},
             locale="en-AU",
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36",
+            user_agent=(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "Chrome/130 Safari/537.36"
+            ),
         )
         page.set_default_timeout(int(self.limits["search"]["page_timeout_ms"]))
         return page
@@ -89,12 +144,16 @@ class SendicoScanner:
     async def search(self, term: str) -> list[SendicoListing]:
         page = await self._new_page()
         try:
+            LOGGER.info("Starting Sendico search: %s", term)
             await self._goto(page, self.config["category_url"])
             await self._dismiss_cookies(page)
-            await self._submit_search(page, term)
+            search_method = await self._submit_search(page, term)
             await page.wait_for_timeout(2200)
             await self._scroll(page)
-            raw = await page.locator('a[href*="/shop/mercari/catalog/"]').evaluate_all(
+
+            raw = await page.locator(
+                'a[href*="/shop/mercari/catalog/"]'
+            ).evaluate_all(
                 """
                 (anchors) => anchors.map((a) => {
                   let node = a;
@@ -107,31 +166,61 @@ class SendicoScanner:
                       image: img.currentSrc || img.src || ''
                     };
                   }
-                  return {href: a.href, text: (a.innerText || '').trim(), title: '', image: ''};
+                  return {
+                    href: a.href,
+                    text: (a.innerText || '').trim(),
+                    title: '',
+                    image: ''
+                  };
                 })
                 """
             )
+
             results: list[SendicoListing] = []
             seen: set[str] = set()
             limit = int(self.limits["search"]["results_per_term"])
+            rejected_invalid = 0
+            rejected_duplicate = 0
+            retained_without_price = 0
+
             for item in raw:
-                url = str(item.get("href") or "")
-                if not url or url in seen or "/categories/" in url:
+                listing = listing_from_search_item(item)
+                if listing is None:
+                    rejected_invalid += 1
                     continue
-                price = parse_yen(str(item.get("text") or ""))
-                if price is None:
+                if listing.url in seen:
+                    rejected_duplicate += 1
                     continue
-                seen.add(url)
-                results.append(SendicoListing(
-                    code=listing_code(url),
-                    url=url,
-                    title=str(item.get("title") or str(item.get("text") or "").splitlines()[0]).strip(),
-                    price_yen=price,
-                    image_urls=[str(item["image"])] if item.get("image") else [],
-                    raw_text=str(item.get("text") or ""),
-                ))
+
+                seen.add(listing.url)
+                if listing.price_yen <= 0:
+                    retained_without_price += 1
+                results.append(listing)
                 if len(results) >= limit:
                     break
+
+            LOGGER.info(
+                "Sendico search completed: term=%r method=%s final_url=%s "
+                "raw_anchors=%d retained=%d missing_result_price=%d "
+                "duplicates=%d invalid=%d",
+                term,
+                search_method,
+                page.url,
+                len(raw),
+                len(results),
+                retained_without_price,
+                rejected_duplicate,
+                rejected_invalid,
+            )
+            if not results:
+                LOGGER.warning(
+                    "Sendico search returned no usable listings: term=%r "
+                    "final_url=%s page_title=%r raw_anchors=%d",
+                    term,
+                    page.url,
+                    await page.title(),
+                    len(raw),
+                )
             return results
         finally:
             await page.close()
@@ -144,7 +233,9 @@ class SendicoScanner:
         previous = -1
         stable = 0
         for round_number in range(maximum + 1):
-            count = await page.locator('a[href*="/shop/mercari/catalog/"]').count()
+            count = await page.locator(
+                'a[href*="/shop/mercari/catalog/"]'
+            ).count()
             LOGGER.info("Search load round %d: %d listing links", round_number, count)
             if count >= raw_limit:
                 return
@@ -168,44 +259,89 @@ class SendicoScanner:
             urls = await page.locator("img").evaluate_all(
                 """
                 (imgs) => imgs.flatMap((img) => [
-                  img.currentSrc, img.src, img.getAttribute('data-src'), img.getAttribute('data-original')
+                  img.currentSrc,
+                  img.src,
+                  img.getAttribute('data-src'),
+                  img.getAttribute('data-original')
                 ]).filter(Boolean)
                 """
             )
             selected: list[str] = []
             for url in urls:
                 absolute = urljoin(listing.url, str(url))
-                if is_listing_image_url(absolute, listing.code) and absolute not in selected:
+                if (
+                    is_listing_image_url(absolute, listing.code)
+                    and absolute not in selected
+                ):
                     selected.append(absolute)
             if not selected:
                 html = (await page.content()).replace("\\/", "/")
-                for url in re.findall(r"https?://[^\"'\s<>]+?\.(?:jpe?g|png|webp)(?:\?[^\"'\s<>]*)?", html, re.I):
-                    if is_listing_image_url(url, listing.code) and url not in selected:
+                for url in re.findall(
+                    r"https?://[^\"'\s<>]+?\.(?:jpe?g|png|webp)"
+                    r"(?:\?[^\"'\s<>]*)?",
+                    html,
+                    re.I,
+                ):
+                    if (
+                        is_listing_image_url(url, listing.code)
+                        and url not in selected
+                    ):
                         selected.append(url)
-            listing.image_urls = list(dict.fromkeys([*listing.image_urls, *selected]))
+            listing.image_urls = list(
+                dict.fromkeys([*listing.image_urls, *selected])
+            )
             listing.description = body
             listing.raw_text = body
             listing.seller_positive_ratings = parse_seller_positive_ratings(body)
             if listing.price_yen <= 0:
                 listing.price_yen = parse_yen(body) or 0
+                if listing.price_yen > 0:
+                    LOGGER.info(
+                        "Hydration recovered missing price for %s: ¥%s",
+                        listing.code,
+                        f"{listing.price_yen:,}",
+                    )
+                else:
+                    LOGGER.warning(
+                        "Could not determine listing price after hydration: %s",
+                        listing.code,
+                    )
             return listing
         finally:
             await page.close()
 
-    async def _submit_search(self, page: Page, term: str) -> None:
-        for selector in ['input[type="search"]', 'input[placeholder*="Search" i]', 'input[aria-label*="Search" i]', 'input[name="search"]']:
+    async def _submit_search(self, page: Page, term: str) -> str:
+        selectors = [
+            'input[type="search"]',
+            'input[placeholder*="Search" i]',
+            'input[aria-label*="Search" i]',
+            'input[name="search"]',
+        ]
+        for selector in selectors:
             locator = page.locator(selector).first
             if await locator.count() and await locator.is_visible():
                 await locator.fill(term)
                 await locator.press("Enter")
-                return
+                LOGGER.info(
+                    "Submitted Sendico search through visible input: %s", selector
+                )
+                return f"input:{selector}"
+
         separator = "&" if "?" in page.url else "?"
-        await self._goto(page, f"{page.url}{separator}search={term}")
+        fallback_url = f"{page.url}{separator}search={quote_plus(term)}"
+        LOGGER.warning(
+            "No visible Sendico search input found; using URL fallback: %s",
+            fallback_url,
+        )
+        await self._goto(page, fallback_url)
+        return "url-fallback"
 
     @staticmethod
     async def _dismiss_cookies(page: Page) -> None:
         for label in ["Accept", "Accept all", "I agree", "Got it"]:
-            button = page.get_by_role("button", name=re.compile(label, re.I)).first
+            button = page.get_by_role(
+                "button", name=re.compile(label, re.I)
+            ).first
             try:
                 if await button.count() and await button.is_visible():
                     await button.click()
