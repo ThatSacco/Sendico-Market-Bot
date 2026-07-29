@@ -177,12 +177,18 @@ Return same_card true only when the visual identity is convincing, but do not re
         for model in dict.fromkeys(model_candidates):
             try:
                 data = self._request(model, prompt, reference_jpeg, candidate_jpeg)
-                confidence = max(0.0, min(1.0, float(data.get("confidence") or 0.0)))
+                same_card = bool(data.get("same_card"))
+                raw_confidence = max(0.0, min(1.0, float(data.get("confidence") or 0.0)))
+                # The model reports confidence in its decision, including negative
+                # decisions. Downstream thresholds represent positive-match
+                # confidence, so a same_card=false result must never qualify for
+                # detailed analysis or an alert regardless of raw confidence.
+                confidence = raw_confidence if same_card else 0.0
                 return VisualMatch(
                     target_id=target_id,
                     stage=stage,
                     confidence=confidence,
-                    same_card=bool(data.get("same_card")),
+                    same_card=same_card,
                     candidate_labels=[str(value) for value in data.get("candidate_labels") or []],
                     evidence=[str(value) for value in data.get("evidence") or []],
                     conflicts=[str(value) for value in data.get("conflicts") or []],
