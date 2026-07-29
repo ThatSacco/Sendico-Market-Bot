@@ -1,40 +1,26 @@
 name: Test Sendico Market Bot
-
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-
 permissions:
   contents: read
-
 concurrency:
   group: sendico-tests-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
-
-      - name: Install dependencies
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
-
-      - name: Compile source
-        run: python -m compileall -q src
-
-      - name: Run test suite
-        run: pytest -q
+      - run: python -m compileall -q src
+      - run: pytest -q
